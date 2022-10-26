@@ -1,4 +1,0 @@
-{"sigma_file_loc": '/data/Projects/GIFFT/Harvey2017/sentinel1/RTC_corrected/final',
- "output_dir": '/data/Projects/GIFFT/Harvey2017/sentinel1/FD_results',
- "surface_water_dir": '/data2/Global_Surface_Water_Products',
- "surface_water_fname": 'gswp_houston.tif'}
