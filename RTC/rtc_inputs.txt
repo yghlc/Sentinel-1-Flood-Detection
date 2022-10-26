@@ -1,0 +1,5 @@
+{"DEM": '',
+ "grd_file_loc": '/data/Projects/GIFFT/Midwest2019/sentinel1',
+ "region_model": '',
+ "output_dir": '/data/Projects/GIFFT/Midwest2019/sentinel1/RTC_corrected',
+ "pixsize": 10.0}
