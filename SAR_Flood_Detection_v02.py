@@ -18,7 +18,7 @@ import os,sys
 import argparse,ast
 from subprocess import Popen, PIPE, STDOUT
 
-import json
+import shutil
 
 #gdal_dir='/home/rcassotto/anaconda3/bin/'
 gdal_dir='/usr/local/bin/'
@@ -35,13 +35,10 @@ def run_pOpen(cmd_str):
 
 
 def update_env_setting():
-    env_setting = 'env_setting.json'
-    if os.path.isfile(env_setting):
-        with open(env_setting) as f_obj:
-            data = json.load(f_obj)
-            gdal_tran = data['gdal_translate_bin']
-            global gdal_dir
-            gdal_dir = os.path.dirname(gdal_tran)
+    gdal_info = shutil.which("gdalinfo")
+    global gdal_dir
+    gdal_dir = os.path.dirname(gdal_info)  + '/'
+    print('update ddal_dir to %s' %gdal_dir)
 
 
 # ---------------------------------------------------------------------------
