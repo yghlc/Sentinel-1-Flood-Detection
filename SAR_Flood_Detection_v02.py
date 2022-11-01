@@ -14,13 +14,34 @@ from BimodalThreshold_module_v01 import BimodalThreshold
 import rasterio
 import glob
 import numpy as np
-import os
+import os,sys
 import argparse,ast
 from subprocess import Popen, PIPE, STDOUT
 
+import json
 
 #gdal_dir='/home/rcassotto/anaconda3/bin/'
 gdal_dir='/usr/local/bin/'
+
+def run_pOpen(cmd_str):
+    ps = Popen(cmd_str, shell=True, stdin=PIPE, stdout=PIPE, stderr=STDOUT)
+    out, err = ps.communicate()
+    returncode = ps.returncode
+    if returncode != 0:
+        print(out.decode())
+        # print(p.stdout.read())
+        print(err)
+        sys.exit(1)
+
+
+def update_env_setting():
+    env_setting = 'env_setting.json'
+    if os.path.isfile(env_setting):
+        with open(env_setting) as f_obj:
+            data = json.load(f_obj)
+            gdal_tran = data['gdal_translate_bin']
+            global gdal_dir
+            gdal_dir = os.path.dirname(gdal_tran)
 
 
 # ---------------------------------------------------------------------------
@@ -120,16 +141,14 @@ def create_water_masks(surface_water_dir, surface_water_fname, pixel_size_lon_de
     print('Generating permanent water mask: ', tmp_mask_path_and_filename)
     cmd_gen_mask = gdal_dir + 'gdal_calc.py -A ' + gswp_path_and_filename + ' --outfile=' + tmp_mask_path_and_filename + ' --calc="logical_and(A!=1, A!=255)"'
     print(cmd_gen_mask); print(' ')
-    p_cmd_gen_mask = Popen(cmd_gen_mask, shell=True, stdin=PIPE, stdout=PIPE, stderr=STDOUT)
-    p_cmd_gen_mask.communicate()  # This forces Python to wait while Popen subprocess completes. 
+    run_pOpen(cmd_gen_mask)
 
      
     ##### Crop and resize mask to extents and pixel size of input image
     mask_outfilename = gswp_path_and_filename.replace('.tif', '_10m_WaterMask.tif') 
     cmd_resize_crop_mask = gdal_dir + 'gdal_translate -tr ' + str(pixel_size_lon_deg) + ' ' + str(pixel_size_lat_deg) + ' -r bilinear -projwin ' + str(minLon) + ' ' + str(maxLat) + ' ' + str(maxLon) + ' ' + str(minLat) + ' ' + tmp_mask_path_and_filename + ' ' + mask_outfilename
     print(cmd_resize_crop_mask); print(' ')
-    p_cmd_crop_resize_mask = Popen(cmd_resize_crop_mask, shell=True, stdin=PIPE, stdout=PIPE, stderr=STDOUT)
-    p_cmd_crop_resize_mask.communicate()
+    run_pOpen(cmd_resize_crop_mask)
     os.remove(tmp_mask_path_and_filename)
     return mask_outfilename
 
@@ -139,8 +158,7 @@ def apply_water_body_mask(results_map_geotiff, mask_outfilename):
     infile_masked_outfilename = results_map_geotiff.replace('.tif','_PWMasked.tif')
     cmd_apply_mask = gdal_dir + 'gdal_calc.py -A ' + results_map_geotiff + ' -B ' + mask_outfilename + ' --outfile=' + infile_masked_outfilename + ' --calc="A*B" --NoDataValue=-9999'
     print(cmd_apply_mask); print(' ')
-    p_cmd_apply_mask = Popen(cmd_apply_mask, shell=True, stdin=PIPE, stdout=PIPE, stderr=STDOUT)
-    p_cmd_apply_mask.communicate()
+    run_pOpen(cmd_apply_mask)
     return
 
 
@@ -244,6 +262,8 @@ if __name__ ==  "__main__":
     with p.filename as file:
         contents = file.read()
         args = ast.literal_eval(contents)
+
+    update_env_setting()
         
     Sigma_files = glob.glob(os.path.join(args['sigma_file_loc'], '*Sigma0_VV.tif'))  # Process VV files
     if len(Sigma_files) == 0:   ## Process VH files, if VV is empty
