@@ -242,7 +242,7 @@ def Run_amplitude_algorithm(Sigma_files, out_dir, surface_water_dir, surface_wat
         # ---------------------------------------------------------------------------
         ### Write output as Geotiff - lm
         lm = np.mean(lms) # Calculate the mean of the upper threshold (lms) for all regions: 
-        lm_map = np.where(VV_image.band < lm, 1, 0) # lm_map is a binary image of pixels above the threshold; Converts values greater than the mean (i.e. industrial(?)) to 1, all else to 0; a binary image of water(1) and non-water(0)
+        lm_map = np.where(VV_image.band > lm, 1, 0) # lm_map is a binary image of pixels above the threshold; Converts values greater than the mean (i.e. industrial(?)) to 1, all else to 0; a binary image of water(1) and non-water(0)
         lm_map[inan] = NoDataValue  ## convert no data values
         lm_map = lm_map.astype(np.uint8)
         map_type='LM'   
@@ -254,7 +254,7 @@ def Run_amplitude_algorithm(Sigma_files, out_dir, surface_water_dir, surface_wat
         # ---------------------------------------------------------------------------
         ### Write output as Geotiff - otsu
         otsu_mean = np.mean(otsus) # Calculate the mean of the upper threshold (lms) for all regions: 
-        otsu_map = np.where(VV_image.band < otsu_mean, 1, 0) # lm_map is a binary image of pixels above the threshold; Converts values greater than the mean (i.e. industrial(?)) to 1, all else to 0; a binary image of water(1) and non-water(0)
+        otsu_map = np.where(VV_image.band > otsu_mean, 1, 0) # lm_map is a binary image of pixels above the threshold; Converts values greater than the mean (i.e. industrial(?)) to 1, all else to 0; a binary image of water(1) and non-water(0)
         otsu_map[inan] = NoDataValue  ## convert no data values
         otsu_map = otsu_map.astype(np.uint8)
         map_type='OTSU'       
@@ -264,7 +264,7 @@ def Run_amplitude_algorithm(Sigma_files, out_dir, surface_water_dir, surface_wat
         
         ### Write output as Geotiff - lower of the two mean thresholds
         final_threshold_val = np.min(np.array([lm, otsu_mean]))
-        combined_map = np.where(VV_image.band < final_threshold_val, 1, 0) # lm_map is a binary image of pixels above the threshold; Converts values greater than the mean (i.e. industrial(?)) to 1, all else to 0; a binary image of water(1) and non-water(0)
+        combined_map = np.where(VV_image.band > final_threshold_val, 1, 0) # lm_map is a binary image of pixels above the threshold; Converts values greater than the mean (i.e. industrial(?)) to 1, all else to 0; a binary image of water(1) and non-water(0)
         combined_map[inan] = NoDataValue  ## convert no data values to
         combined_map = combined_map.astype(np.uint8)
         map_type='combined'       
