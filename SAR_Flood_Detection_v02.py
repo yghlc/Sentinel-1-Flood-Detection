@@ -24,6 +24,15 @@ import shutil
 gdal_dir='/usr/local/bin/'
 NoDataValue = 128
 
+def update_env_setting():
+    gdal_info = shutil.which("gdalinfo")
+    global gdal_dir
+    gdal_dir = os.path.dirname(gdal_info)  + '/'
+    print('update gdal_dir to %s' %gdal_dir)
+# when import or run this model, will call update_env_setting
+update_env_setting()
+
+
 def run_pOpen(cmd_str):
     ps = Popen(cmd_str, shell=True, stdin=PIPE, stdout=PIPE, stderr=STDOUT)
     out, err = ps.communicate()
@@ -35,11 +44,6 @@ def run_pOpen(cmd_str):
         sys.exit(1)
 
 
-def update_env_setting():
-    gdal_info = shutil.which("gdalinfo")
-    global gdal_dir
-    gdal_dir = os.path.dirname(gdal_info)  + '/'
-    print('update ddal_dir to %s' %gdal_dir)
 
 
 # ---------------------------------------------------------------------------
@@ -276,8 +280,6 @@ if __name__ ==  "__main__":
     with p.filename as file:
         contents = file.read()
         args = ast.literal_eval(contents)
-
-    update_env_setting()
         
     Sigma_files = glob.glob(os.path.join(args['sigma_file_loc'], '*Sigma0_VV.tif'))  # Process VV files
     if len(Sigma_files) == 0:   ## Process VH files, if VV is empty
