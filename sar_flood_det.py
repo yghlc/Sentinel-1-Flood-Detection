@@ -46,13 +46,14 @@ def main(options, args):
     sar_image_list = get_sar_file_list(args[0])
     save_dir = options.save_dir
     water_mask = options.water_mask
+    verbose = options.verbose
 
     print(datetime.now(), 'Found %d SAR Sigma0 images from %s:'%(len(sar_image_list),args[0]))
     print(datetime.now(), 'Will save flood detection results to %s'%save_dir)
 
 
     # Run_amplitude_algorithm_v2(sar_image_list, save_dir,water_mask_file=water_mask)
-    Run_amplitude_algorithm(sar_image_list, save_dir,os.path.dirname(water_mask),os.path.basename(water_mask))
+    Run_amplitude_algorithm(sar_image_list, save_dir,os.path.dirname(water_mask),os.path.basename(water_mask),verbose=verbose)
 
 
 
@@ -70,6 +71,9 @@ if __name__ == "__main__":
                       action="store", dest="water_mask",
                       help="a file containing the permanent water surface")
 
+    parser.add_option("-v", "--verbose",
+                      action="store_true", dest="verbose",default=False,
+                      help="setting this to enable outputting log message and png files of histogram")
 
 
     (options, args) = parser.parse_args()

@@ -178,7 +178,7 @@ def apply_water_body_mask(results_map_geotiff, mask_outfilename):
 
 
 
-def Run_amplitude_algorithm(Sigma_files, out_dir, surface_water_dir, surface_water_fname):
+def Run_amplitude_algorithm(Sigma_files, out_dir, surface_water_dir, surface_water_fname,verbose=True):
     
     
     for in_sigma_file in Sigma_files:
@@ -219,7 +219,7 @@ def Run_amplitude_algorithm(Sigma_files, out_dir, surface_water_dir, surface_wat
         ## Mod 10/18/2022
         window=1456*3
         sub_window=182*3
-        otsus, lms = bt.otsu_and_lm([VV_image], out_dir, ptf=False, block_dim=window, s=sub_window, verbose=True) ## Setting Verbose = True creates diagnostic images of subpanel distributions
+        otsus, lms = bt.otsu_and_lm([VV_image], out_dir, ptf=False, block_dim=window, s=sub_window, verbose=verbose) ## Setting Verbose = True creates diagnostic images of subpanel distributions
 
         
         # ---------------------------------------------------------------------------
