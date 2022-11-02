@@ -22,6 +22,7 @@ import shutil
 
 #gdal_dir='/home/rcassotto/anaconda3/bin/'
 gdal_dir='/usr/local/bin/'
+NoDataValue = 128
 
 def run_pOpen(cmd_str):
     ps = Popen(cmd_str, shell=True, stdin=PIPE, stdout=PIPE, stderr=STDOUT)
@@ -115,13 +116,21 @@ def save_metadata(granule, infile_path, image_data, window, sub_window, otsus, l
     
 # ---------------------------------------------------------------------------
 # Write out geotiffs
-def write_geotiff(out_dir, image_data, granule, outmap, map_type): 
+def write_geotiff(out_dir, image_data, granule, outmap, map_type,nodata=None,compress=None):
     if "Sigma0_VV" in granule:
         tiff_outname = os.path.join(out_dir,granule.replace('_Sigma0_VV.tif','_FD_Results_' + map_type + '.tif'))  
     else:
         tiff_outname = os.path.join(out_dir,granule.replace('_Sigma0_VH.tif','_FD_Results_' + map_type + '.tif'))         
     profile = image_data.profile.copy()  # copy geotiff meta data from input file   
     print('Saving results to ', tiff_outname)
+    dt = np.dtype(outmap.dtype)
+    # update meta
+    profile.update({"dtype": dt.name})
+    if nodata is not None:
+        profile.update({"nodata": nodata})
+    if compress is not None:
+        profile.update(compress=compress)
+
     with rasterio.open(tiff_outname, 'w', **profile) as dst:
         dst.write(outmap,1)
     return tiff_outname
@@ -153,9 +162,14 @@ def create_water_masks(surface_water_dir, surface_water_fname, pixel_size_lon_de
 def apply_water_body_mask(results_map_geotiff, mask_outfilename):
     #### gdal_calc to apply the mask
     infile_masked_outfilename = results_map_geotiff.replace('.tif','_PWMasked.tif')
-    cmd_apply_mask = gdal_dir + 'gdal_calc.py -A ' + results_map_geotiff + ' -B ' + mask_outfilename + ' --outfile=' + infile_masked_outfilename + ' --calc="A*B" --NoDataValue=-9999'
+    cmd_apply_mask = gdal_dir + 'gdal_calc.py -A ' + results_map_geotiff + ' -B ' + mask_outfilename + ' --outfile=' + infile_masked_outfilename + ' --calc="A*B" --NoDataValue=%d'%NoDataValue
     print(cmd_apply_mask); print(' ')
     run_pOpen(cmd_apply_mask)
+    cmd_compress = gdal_dir + 'gdal_translate -co "compress=lzw" %s tmp.tif'%(infile_masked_outfilename)
+    run_pOpen(cmd_compress)
+    os.remove(infile_masked_outfilename)
+    shutil.move('tmp.tif', infile_masked_outfilename)
+
     return
 
 
@@ -218,9 +232,10 @@ def Run_amplitude_algorithm(Sigma_files, out_dir, surface_water_dir, surface_wat
         ### Write output as Geotiff - lm
         lm = np.mean(lms) # Calculate the mean of the upper threshold (lms) for all regions: 
         lm_map = np.where(VV_image.band < lm, 1, 0) # lm_map is a binary image of pixels above the threshold; Converts values greater than the mean (i.e. industrial(?)) to 1, all else to 0; a binary image of water(1) and non-water(0)
-        lm_map[inan] = -9999  ## convert no data values to -9999
+        lm_map[inan] = NoDataValue  ## convert no data values
+        lm_map = lm_map.astype(np.uint8)
         map_type='LM'   
-        tiff_outname = write_geotiff(out_dir, image_data, granule, lm_map, map_type)      ## Write geotiff  
+        tiff_outname = write_geotiff(out_dir, image_data, granule, lm_map, map_type,nodata=NoDataValue,compress='lzw')      ## Write geotiff
         
         apply_water_body_mask(tiff_outname, mask_outfilename)  # mask permanent water bodies
 
@@ -229,18 +244,20 @@ def Run_amplitude_algorithm(Sigma_files, out_dir, surface_water_dir, surface_wat
         ### Write output as Geotiff - otsu
         otsu_mean = np.mean(otsus) # Calculate the mean of the upper threshold (lms) for all regions: 
         otsu_map = np.where(VV_image.band < otsu_mean, 1, 0) # lm_map is a binary image of pixels above the threshold; Converts values greater than the mean (i.e. industrial(?)) to 1, all else to 0; a binary image of water(1) and non-water(0)
-        otsu_map[inan] = -9999  ## convert no data values to -9999
+        otsu_map[inan] = NoDataValue  ## convert no data values
+        otsu_map = otsu_map.astype(np.uint8)
         map_type='OTSU'       
-        tiff_outname = write_geotiff(out_dir, image_data, granule, otsu_map, map_type)        
+        tiff_outname = write_geotiff(out_dir, image_data, granule, otsu_map, map_type,nodata=NoDataValue,compress='lzw')
         apply_water_body_mask(tiff_outname, mask_outfilename)  # mask permanent water bodies
 
         
         ### Write output as Geotiff - lower of the two mean thresholds
         final_threshold_val = np.min(np.array([lm, otsu_mean]))
         combined_map = np.where(VV_image.band < final_threshold_val, 1, 0) # lm_map is a binary image of pixels above the threshold; Converts values greater than the mean (i.e. industrial(?)) to 1, all else to 0; a binary image of water(1) and non-water(0)
-        combined_map[inan] = -9999  ## convert no data values to -9999
+        combined_map[inan] = NoDataValue  ## convert no data values to
+        combined_map = combined_map.astype(np.uint8)
         map_type='combined'       
-        tiff_outname = write_geotiff(out_dir, image_data, granule, combined_map, map_type)        
+        tiff_outname = write_geotiff(out_dir, image_data, granule, combined_map, map_type,nodata=NoDataValue,compress='lzw')
         apply_water_body_mask(tiff_outname, mask_outfilename)  # mask permanent water bodies
 
         
