@@ -120,7 +120,7 @@ def save_metadata(granule, infile_path, image_data, window, sub_window, otsus, l
     
 # ---------------------------------------------------------------------------
 # Write out geotiffs
-def write_geotiff(out_dir, image_data, granule, outmap, map_type,nodata=None,compress=None):
+def write_geotiff(out_dir, image_data, granule, outmap, map_type,nodata=None,compress=None,b_colormap=False):
     if "Sigma0_VV" in granule:
         tiff_outname = os.path.join(out_dir,granule.replace('_Sigma0_VV.tif','_FD_Results_' + map_type + '.tif'))  
     else:
@@ -137,6 +137,13 @@ def write_geotiff(out_dir, image_data, granule, outmap, map_type,nodata=None,com
 
     with rasterio.open(tiff_outname, 'w', **profile) as dst:
         dst.write(outmap,1)
+        if b_colormap:
+            color_map_dict = {0: (230, 230, 230, 255),
+                              1: (31, 120, 180, 255),  # light blue for water
+                              128: (255, 255, 255, 255),  # nodata
+                              255: (31, 120, 180, 255)}  # light blue for water, in some file, 255 is water
+            dst.write_colormap(1, color_map_dict)
+
     return tiff_outname
 
 def create_water_masks(surface_water_dir, surface_water_fname, pixel_size_lon_deg, pixel_size_lat_deg, minLon, maxLon, minLat, maxLat):
@@ -239,7 +246,7 @@ def Run_amplitude_algorithm(Sigma_files, out_dir, surface_water_dir, surface_wat
         lm_map[inan] = NoDataValue  ## convert no data values
         lm_map = lm_map.astype(np.uint8)
         map_type='LM'   
-        tiff_outname = write_geotiff(out_dir, image_data, granule, lm_map, map_type,nodata=NoDataValue,compress='lzw')      ## Write geotiff
+        tiff_outname = write_geotiff(out_dir, image_data, granule, lm_map, map_type,nodata=NoDataValue,compress='lzw',b_colormap=True)      ## Write geotiff
         
         apply_water_body_mask(tiff_outname, mask_outfilename)  # mask permanent water bodies
 
@@ -251,7 +258,7 @@ def Run_amplitude_algorithm(Sigma_files, out_dir, surface_water_dir, surface_wat
         otsu_map[inan] = NoDataValue  ## convert no data values
         otsu_map = otsu_map.astype(np.uint8)
         map_type='OTSU'       
-        tiff_outname = write_geotiff(out_dir, image_data, granule, otsu_map, map_type,nodata=NoDataValue,compress='lzw')
+        tiff_outname = write_geotiff(out_dir, image_data, granule, otsu_map, map_type,nodata=NoDataValue,compress='lzw',b_colormap=True)
         apply_water_body_mask(tiff_outname, mask_outfilename)  # mask permanent water bodies
 
         
@@ -261,7 +268,7 @@ def Run_amplitude_algorithm(Sigma_files, out_dir, surface_water_dir, surface_wat
         combined_map[inan] = NoDataValue  ## convert no data values to
         combined_map = combined_map.astype(np.uint8)
         map_type='combined'       
-        tiff_outname = write_geotiff(out_dir, image_data, granule, combined_map, map_type,nodata=NoDataValue,compress='lzw')
+        tiff_outname = write_geotiff(out_dir, image_data, granule, combined_map, map_type,nodata=NoDataValue,compress='lzw',b_colormap=True)
         apply_water_body_mask(tiff_outname, mask_outfilename)  # mask permanent water bodies
 
         
