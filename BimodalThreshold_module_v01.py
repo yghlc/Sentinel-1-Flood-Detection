@@ -27,7 +27,7 @@ class BimodalThreshold(Image_proc):
 #        self.deg_const = 0.000089831528412*4000 # a constant physical window size in units of degrees# Clay's original window size (based on 10 m GRD data)
         self.deg_const = 0.000089831528412*4000 # a constant physical window size in units of degrees; this works reasonably well for Pyeongchang. May need to 
         ## autonomosouly select image size or nFactor Size (e.g. 4000) based on size of input image. 4000 works well for entire Sentiel-1 image, 400 is better for 
-        ## IARPA sites. 
+        ## smaller sites. 
          
 
     """ Helper functions """
