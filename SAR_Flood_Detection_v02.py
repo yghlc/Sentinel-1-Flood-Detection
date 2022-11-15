@@ -121,11 +121,13 @@ def save_metadata(granule, infile_path, image_data, window, sub_window, otsus, l
 # ---------------------------------------------------------------------------
 # Write out geotiffs
 def write_geotiff(out_dir, image_data, granule, outmap, map_type,nodata=None,compress=None,b_colormap=False):
-    if "Sigma0_VV" in granule:
-        tiff_outname = os.path.join(out_dir,granule.replace('_Sigma0_VV.tif','_FD_Results_' + map_type + '.tif'))  
-    else:
-        tiff_outname = os.path.join(out_dir,granule.replace('_Sigma0_VH.tif','_FD_Results_' + map_type + '.tif'))         
-    profile = image_data.profile.copy()  # copy geotiff meta data from input file   
+    # if "Sigma0_VV" in granule:
+    #     tiff_outname = os.path.join(out_dir,granule.replace('_Sigma0_VV.tif','_FD_Results_' + map_type + '.tif'))
+    # else:
+    #     tiff_outname = os.path.join(out_dir,granule.replace('_Sigma0_VH.tif','_FD_Results_' + map_type + '.tif'))
+    filename, ext = os.path.splitext(granule)
+    tiff_outname = os.path.join(out_dir,filename + '_'+map_type + ext)
+    profile = image_data.profile.copy()  # copy geotiff meta data from input file
     print('Saving results to ', tiff_outname)
     dt = np.dtype(outmap.dtype)
     # update meta
@@ -191,9 +193,9 @@ def Run_amplitude_algorithm(Sigma_files, out_dir, surface_water_dir, surface_wat
     for in_sigma_file in Sigma_files:
         # ---------------------------------------------------------------------------
         ## construct output directory name, make output directory     
-        granule = in_sigma_file.split('/')[-1] # granule is a string with the original Sigma0 filename (e.g. S1A_IW_GRDH_1SDV_20150921T232856_20150921T232918_007820_00AE3B_E36F_Sigma0_VV)
-        head_tail=os.path.split(in_sigma_file)   # partition input path from filename      
-        infile_path = head_tail[0]
+        granule = os.path.basename(in_sigma_file) # in_sigma_file.split('/')[-1] # granule is a string with the original Sigma0 filename (e.g. S1A_IW_GRDH_1SDV_20150921T232856_20150921T232918_007820_00AE3B_E36F_Sigma0_VV)
+        # head_tail=os.path.split(in_sigma_file)   # partition input path from filename
+        infile_path = os.path.dirname(in_sigma_file) #head_tail[0]      # image directory
         mk_outdirectory(out_dir)  # make output directory#
          
         

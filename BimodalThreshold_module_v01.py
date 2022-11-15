@@ -254,13 +254,15 @@ class BimodalThreshold(Image_proc):
                             #plt.show()
 #                            print('Working on %s' % {img.path})    
                             ncount = ncount + 1
-                            infilename = (img.path).rsplit('/',1)[1]   
+                            infilename = os.path.basename(img.path) # basename
                             print("infilename: ", infilename)
-                            if "Sigma0_VV" in infilename:
-                                out_pngfilename = infilename.replace('_Sigma0_VV.tif','_SAR_AMP_THRESH_sArray_' + str(ncount) + '.png') 
-                            else:
-                                out_pngfilename = infilename.replace('_Sigma0_VH.tif','_SAR_AMP_THRESH_sArray_' + str(ncount) + '.png')                                
-#                            out_pngfilename = infilename.replace('_Sigma0_VV.tif','_SAR_AMP_THRESH_sArray_' + str(ncount) + '.png') 
+                            # if "Sigma0_VV" in infilename:
+                            #     out_pngfilename = infilename.replace('_Sigma0_VV.tif','_SAR_AMP_THRESH_sArray_' + str(ncount) + '.png')
+                            # else:
+                            #     out_pngfilename = infilename.replace('_Sigma0_VH.tif','_SAR_AMP_THRESH_sArray_' + str(ncount) + '.png')
+#                            out_pngfilename = infilename.replace('_Sigma0_VV.tif','_SAR_AMP_THRESH_sArray_' + str(ncount) + '.png')
+                            filename, ext = os.path.splitext(infilename)
+                            out_pngfilename = filename + '_SAR_AMP_THRESH_sArray_' + str(ncount) + '.png'
                             outfilename_and_path = (out_dir + '/' + out_pngfilename)
                            
                             
