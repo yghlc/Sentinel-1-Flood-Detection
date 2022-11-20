@@ -108,7 +108,7 @@ def flood_detection_from_SAR_amplitude(sar_image_list, save_dir,dst_nodata=128, 
         ### Write output as Geotiff - lm
         lm = np.mean(lms)  # Calculate the mean of the upper threshold (lms) for all regions:
         lm_map = np.where(img_data < lm, 1, 0)  # lm_map is a binary image of pixels above the threshold; Converts values greater than the mean (i.e. industrial(?)) to 1, all else to 0; a binary image of water(1) and non-water(0)
-        inan = np.where(img_data == np.nan)
+        inan = np.where(np.isnan(img_data))
         lm_map[inan] = dst_nodata  ## convert no data values
         lm_map = lm_map.astype(np.uint8)
         map_type = 'LM'
