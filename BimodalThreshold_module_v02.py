@@ -299,11 +299,22 @@ class BimodalThreshold(Image_proc):
         lm_threshold = None
 
         tile_flat = s_s_array.flatten()
-        tile_flat = tile_flat[tile_flat != 0]
+        tile_flat = tile_flat[tile_flat != 0]   # 0 is the nodata? in Sigma0, usually
 
         # handle case of only 0's
         if len(tile_flat) == 0:
             return otsu_threshold, lm_threshold
+
+        # array_mean = np.mean(tile_flat)
+        # array_medium = np.median(tile_flat)
+
+        # another condition to check if tile is in a no-data zone
+        min_cnt = np.sum(s_s_array == np.min(s_s_array))
+
+        # max_cnt = np.sum(s_s_array == np.max(s_s_array))
+        # ignore extreme large or small values (has applied quantile_clip)
+        tile_flat = tile_flat[tile_flat != np.max(tile_flat)]
+        tile_flat = tile_flat[tile_flat != np.min(tile_flat)]
 
         bin_count, M = self.normalize_array_and_bin(tile_flat, 256)
         t_vector = np.arange(0, 256, 1)  # vector in interval [0, 255]
@@ -317,19 +328,18 @@ class BimodalThreshold(Image_proc):
         else:
             max_B = 0
 
-        # another condition to check if tile is in a no-data zone
-        min_cnt = np.sum(s_s_array == np.min(s_s_array))
-
         if verbose:
             print(idx_str, 'max_B',max_B, 'min_cnt',min_cnt, 'array size:',s_s_array.shape, s_s_array.size,'np.min(s_s_array)',np.min(s_s_array))
         # if the BCV condition is met
-        if max_B > self.B_thresh and min_cnt < 100:
+        if max_B > self.B_thresh and min_cnt < 100 and tile_flat.size > 10000 : #
             # Otsu method
             if self.b_otsu:
                 otsu_threshold = filters.threshold_otsu(image=tile_flat, nbins=256)  # run threshold based on Otsu's method
 
             # LM method
             y, bins = np.histogram(tile_flat, bins=256)  # y = bin count; bins = bin edges
+            y_sum = np.sum(y)
+            y_prob = y/y_sum
             x = (bins[1:] + bins[:-1]) / 2  # x = bin center or median value of bin edges
             if verbose:
                 fig, ax = plt.subplots(ncols=3, figsize=(20, 6))
@@ -368,6 +378,17 @@ class BimodalThreshold(Image_proc):
                 for valley in valleys:
                     if valley > peak1 and valley < peak2: lm_threshold = valley
 
+                # make sure each class presents at a frequency at least 10%
+                if lm_threshold is not None:
+                    less_than_loc = np.where(x < lm_threshold)
+                    class_one_prob = np.sum(y_prob[less_than_loc])
+                    if class_one_prob < 0.2 or class_one_prob > 0.8:
+                        lm_threshold = None # remove the threshold
+                    if verbose:
+                        print('the accumulated density for class one (<lm_threshold) is:',class_one_prob,
+                              'after applying the balance restriction, lm_threshold:',str(lm_threshold))
+
+
 
             if verbose:
                 ax[2].plot(x, y)
@@ -387,8 +408,9 @@ class BimodalThreshold(Image_proc):
                         ax[2].scatter(otsu_threshold, cs(otsu_threshold), c='r')
                     ax[2].scatter(lm_threshold, cs(lm_threshold), c='g')
                 except:
-                    ax[2].set_title('Otsu (red): {:.2f}'.format(otsu_threshold))
-                    ax[2].scatter(otsu_threshold, cs(otsu_threshold), c='r')
+                    if otsu_threshold is not None:
+                        ax[2].set_title('Otsu (red): {:.2f}'.format(otsu_threshold))
+                        ax[2].scatter(otsu_threshold, cs(otsu_threshold), c='r')
 
                 # plt.show()
                 #                            print('Working on %s' % {img.path})
