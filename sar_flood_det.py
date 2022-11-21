@@ -18,6 +18,7 @@ import numpy as np
 from SAR_Flood_Detection_v02 import Run_amplitude_algorithm
 from SAR_Flood_Detection_v02 import save_metadata
 from SAR_Flood_Detection_v02 import write_geotiff
+from SAR_Flood_Detection_v02 import mk_outdirectory
 
 import raster_tools
 
@@ -71,6 +72,7 @@ def image_read_pre_process(image_path, src_nodata=None):
 def flood_detection_from_SAR_amplitude(sar_image_list, save_dir,dst_nodata=128, src_nodata=None, water_mask_file=None,ptf=False,v=0.1,verbose=False,process_num=1):
     t0 = time.time()
     total_count = len(sar_image_list)
+    mk_outdirectory(save_dir)
     for idx, grd in enumerate(sar_image_list):
         t1 = time.time()
         print(datetime.now(), '(%d/%d) Processing: %s' % (idx + 1, total_count, os.path.basename(grd)))
