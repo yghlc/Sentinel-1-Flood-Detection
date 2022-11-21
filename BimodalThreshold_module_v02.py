@@ -314,8 +314,10 @@ class BimodalThreshold(Image_proc):
         # max_cnt = np.sum(s_s_array == np.max(s_s_array))
         # ignore extreme large or small values (has applied quantile_clip)
         tile_flat = tile_flat[tile_flat != np.max(tile_flat)]
-        tile_flat = tile_flat[tile_flat != np.min(tile_flat)]
         # if there are not too many pixels left
+        if tile_flat.size < 10000:
+            return otsu_threshold, lm_threshold
+        tile_flat = tile_flat[tile_flat != np.min(tile_flat)]
         if tile_flat.size < 10000:
             return otsu_threshold, lm_threshold
 
