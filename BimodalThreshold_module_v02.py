@@ -315,6 +315,9 @@ class BimodalThreshold(Image_proc):
         # ignore extreme large or small values (has applied quantile_clip)
         tile_flat = tile_flat[tile_flat != np.max(tile_flat)]
         tile_flat = tile_flat[tile_flat != np.min(tile_flat)]
+        # if there are not too many pixels left
+        if tile_flat.size < 10000:
+            return otsu_threshold, lm_threshold
 
         bin_count, M = self.normalize_array_and_bin(tile_flat, 256)
         t_vector = np.arange(0, 256, 1)  # vector in interval [0, 255]
@@ -331,7 +334,7 @@ class BimodalThreshold(Image_proc):
         if verbose:
             print(idx_str, 'max_B',max_B, 'min_cnt',min_cnt, 'array size:',s_s_array.shape, s_s_array.size,'np.min(s_s_array)',np.min(s_s_array))
         # if the BCV condition is met
-        if max_B > self.B_thresh and min_cnt < 100 and tile_flat.size > 10000 : #
+        if max_B > self.B_thresh and min_cnt < 100 : #
             # Otsu method
             if self.b_otsu:
                 otsu_threshold = filters.threshold_otsu(image=tile_flat, nbins=256)  # run threshold based on Otsu's method
