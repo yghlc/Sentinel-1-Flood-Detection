@@ -25,6 +25,16 @@ import time
 #Color interpretation https://rasterio.readthedocs.io/en/latest/topics/color.html
 from rasterio.enums import ColorInterp
 
+from subprocess import Popen, PIPE, STDOUT
+def run_pOpen(cmd_str):
+    ps = Popen(cmd_str, shell=True, stdin=PIPE, stdout=PIPE, stderr=STDOUT)
+    out, err = ps.communicate()
+    returncode = ps.returncode
+    if returncode != 0:
+        print(out.decode())
+        # print(p.stdout.read())
+        print(err)
+        sys.exit(1)
 
 def open_raster_read(raster_path):
     src = rasterio.open(raster_path)
@@ -291,6 +301,133 @@ def threshold_clip(band, lower=None, upper=None):
         new_band = np.where(band > upper, upper, band)
         band = new_band
     return band
+
+def get_image_bound_box(file_path, buffer=None):
+    # get the bounding box: (left, bottom, right, top)
+    with rasterio.open(file_path) as src:
+        # the extent of the raster
+        raster_bounds = src.bounds
+        if buffer is not None:
+            # Create new instance of BoundingBox(left, bottom, right, top)
+            new_box_obj = BoundingBox(raster_bounds.left-buffer, raster_bounds.bottom-buffer,
+                       raster_bounds.right+buffer, raster_bounds.top+ buffer)
+            # print(raster_bounds, new_box_obj)
+            return new_box_obj
+        return raster_bounds
+
+def get_image_proj_extent(imagepath):
+    """
+    get the extent of a image
+    Args:
+        imagepath:image path
+
+    Returns:(ulx:Upper Left X,uly: Upper Left Y,lrx: Lower Right X,lry: Lower Right Y)
+
+    """
+    bound = get_image_bound_box(imagepath)
+    ulx = bound.left
+    uly = bound.top
+    lrx = bound.right
+    lry = bound.bottom
+    return (ulx,uly,lrx,lry)
+
+
+def subset_image_projwin(output,imagefile,ulx,uly,lrx,lry,resample_m='bilinear',dst_nondata=0,xres=None,yres=None,
+                         o_format='GTiff',compress=None, tiled=None, bigtiff=None,thread_num=None):
+    #bug fix: the origin (x,y) has a difference between setting one when using gdal_translate to subset image 2016.7.20
+    # CommandString = 'gdal_translate  -r bilinear  -eco -projwin ' +' '+str(ulx)+' '+str(uly)+' '+str(lrx)+' '+str(lry)\
+    # + ' '+imagefile + ' '+output
+    xmin = ulx
+    ymin = lry
+    xmax = lrx
+    ymax = uly
+
+    CommandString = 'gdalwarp -r %s '%resample_m + ' -of ' + o_format
+    CommandString += ' -te ' + str(xmin) + ' ' + str(ymin) + ' ' + str(xmax) + ' ' + str(ymax)
+
+    # if src_nodata != None:
+    #     CommandString += ' -srcnodata ' +  str(src_nodata)
+    # if dst_nodata != None:
+    #     CommandString += ' -dstnodata ' + str(dst_nodata)
+
+    if xres !=None and yres!=None:
+        CommandString += ' -tr ' + str(xres) + ' ' +str(yres)
+
+    if compress != None:
+        CommandString += ' -co ' + 'compress=%s'%compress       # lzw
+    if tiled != None:
+        CommandString += ' -co ' + 'TILED=%s'%tiled     # yes
+    if bigtiff != None:
+        CommandString += ' -co ' + 'bigtiff=%s' % bigtiff  # IF_SAFER
+
+    if thread_num != None:
+        CommandString += ' -multi -wo NUM_THREADS=%d '%thread_num
+
+    CommandString += ' '+ imagefile + ' ' + output
+
+    return run_pOpen(CommandString)
+
+
+def subset_image_baseimage(output_file,input_file,baseimage,same_res=False,resample_m='bilinear'):
+    """
+    subset a image base on the extent of another image
+    Args:
+        output_file:the result file
+        input_file:the image need to subset
+        baseimage:the base image which provide the extend for subset
+        same_res: if true, then will resample the output to the resolution of baseimage, otherwise, keep the resolution
+
+    Returns:True is successful, False otherwise
+
+    """
+    (ulx,uly,lrx,lry) = get_image_proj_extent(baseimage)
+    if ulx is False:
+        return False
+    # check the save folder is valid or not
+    save_dir = os.path.dirname(output_file)
+
+    if same_res:
+        xres, yres = get_xres_yres_file(baseimage)
+    else:
+        xres, yres = get_xres_yres_file(input_file) # the resolution should keep the same
+
+    if subset_image_projwin(output_file,input_file,ulx,uly,lrx,lry,xres=xres,yres=yres,resample_m=resample_m,
+                            compress='lzw', tiled='yes', bigtiff='if_safer') is False:
+        return False
+    return True
+
+def resample_crop_raster(ref_raster, input_raster, output_raster=None, resample_method='near'):
+
+    if output_raster is None:
+        name, ext = os.path.splitext(os.path.basename(input_raster))
+        output_raster = name + '_res_sub' + ext
+
+    # xres, yres = raster_io.get_xres_yres_file(ref_raster)
+    # resample_raster = os.path.basename(input_raster)
+    # resample_raster = io_function.get_name_by_adding_tail(resample_raster,'resample')
+    #
+    # # resample
+    # RSImageProcess.resample_image(input_raster,resample_raster,xres,yres,resample_method)
+    # if os.path.isfile(resample_raster) is False:
+    #     raise ValueError('Resample %s failed'%input_raster)
+
+    # check projection
+    prj4_ref =  get_projection(ref_raster,format='proj4')
+    prj4_input = get_projection(input_raster,format='proj4')
+    if prj4_ref != prj4_input:
+        raise ValueError('projection inconsistent: %s and %s'%(ref_raster, input_raster))
+
+    if os.path.isfile(output_raster):
+        print('Warning, %s exists'%output_raster)
+        return output_raster
+
+    # crop
+    subset_image_baseimage(output_raster, input_raster, ref_raster, same_res=True,resample_m=resample_method)
+    if os.path.isfile(output_raster):
+        return output_raster
+    else:
+        return False
+
 
 def main():
     pass
