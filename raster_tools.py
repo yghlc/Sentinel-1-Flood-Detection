@@ -428,6 +428,180 @@ def resample_crop_raster(ref_raster, input_raster, output_raster=None, resample_
     else:
         return False
 
+def get_max_min_histogram_percent_oneband(data, bin_count, min_percent=0.01, max_percent=0.99, nodata=None,
+                                          hist_range=None):
+    '''
+    get the max and min when cut of % top and bottom pixel values
+    :param data: one band image data, 2d array.
+    :param bin_count: bin_count of calculating the histogram
+    :param min_percent: percent
+    :param max_percent: percent
+    :param nodata:
+    :param hist_range: [min, max] for calculating the histogram
+    :return: min, max value, histogram (hist, bin_edges)
+    '''
+    if data.ndim != 2:
+        raise ValueError('Only accept 2d array')
+    data_1d = data.flatten()
+    if nodata is not None:
+        data_1d = data_1d[data_1d != nodata] # remove nodata values
+
+    data_1d = data_1d[~np.isnan(data_1d)]   # remove nan value
+    hist, bin_edges = np.histogram(data_1d, bins=bin_count, density=False, range=hist_range)
+
+    # get the min and max based on percent cut.
+    if min_percent >= max_percent:
+        raise ValueError('min_percent >= max_percent')
+    found_min = 0
+    found_max = 0
+
+    count = hist.size
+    sum = np.sum(hist)
+    accumulate_sum = 0
+    for ii in range(count):
+        accumulate_sum += hist[ii]
+        if accumulate_sum/sum >= min_percent:
+            found_min = bin_edges[ii]
+            break
+
+    accumulate_sum = 0
+    for ii in range(count-1,0,-1):
+        # print(ii)
+        accumulate_sum += hist[ii]
+        if accumulate_sum / sum >= (1 - max_percent):
+            found_max = bin_edges[ii]
+            break
+
+    return found_min, found_max, hist, bin_edges
+
+def image_numpy_to_8bit(img_np, max_value, min_value, src_nodata=None, dst_nodata=None):
+    '''
+    convert float or 16 bit to 8bit,
+    Args:
+        img_np:  numpy array
+        max_value:
+        min_value:
+        src_nodata:
+        dst_nodata:  if output nodata is 0, then covert data to 1-255, if it's 255, then to 0-254
+
+    Returns: new numpy array
+
+    '''
+    print('Convert to 8bit, original max, min: %.4f, %.4f'%(max_value, min_value))
+    nan_loc = np.where(np.isnan(img_np))
+    if nan_loc[0].size > 0:
+        img_np = np.nan_to_num(img_np)
+
+    nodata_loc = None
+    if src_nodata is not None:
+        nodata_loc = np.where(img_np==src_nodata)
+
+    img_np[img_np > max_value] = max_value
+    img_np[img_np < min_value] = min_value
+
+    if dst_nodata == 0:
+        n_max, n_min = 255, 1
+    elif dst_nodata == 255:
+        n_max, n_min = 254, 0
+    else:
+        n_max, n_min = 255, 0
+
+    # scale the grey values to 0 - 255 for better display
+    k = (n_max - n_min)*1.0/(max_value - min_value)
+    new_img_np = (img_np - min_value) * k + n_min
+    new_img_np = new_img_np.astype(np.uint8)
+
+    # replace nan data as nodata
+    if nan_loc[0].size > 0:
+        if dst_nodata is not None:
+            new_img_np[nan_loc] = dst_nodata
+        else:
+            new_img_np[nan_loc] = n_min
+    # replace nodata
+    if nodata_loc is not None and nodata_loc[0].size >0:
+        if dst_nodata is not None:
+            new_img_np[nodata_loc] = dst_nodata
+        else:
+            new_img_np[nodata_loc] = src_nodata
+
+    return new_img_np
+
+def image_numpy_allBands_to_8bit_hist(img_np_allbands, min_max_values=None, per_min=0.01, per_max=0.99, bin_count = 10000, src_nodata=None, dst_nodata=None):
+
+    input_ndim = img_np_allbands.ndim
+    if input_ndim == 3:
+        band_count, height, width = img_np_allbands.shape
+    else:
+        # add one dimension
+        band_count = 1
+        img_np_allbands = np.expand_dims(img_np_allbands, axis=0)
+
+    if min_max_values is not None:
+        # if we input multiple scales, it should has the same size the band count
+        if len(min_max_values) > 1 and len(min_max_values) != band_count:
+            raise ValueError('The number of min_max_value is not the same with band account')
+        # if only input one scale, then duplicate for multiple band account.
+        if len(min_max_values) == 1 and len(min_max_values) != band_count:
+            min_max_values = min_max_values * band_count
+
+    # get min, max
+    new_img_np = np.zeros_like(img_np_allbands, dtype=np.uint8)
+    for band, img_oneband in enumerate(img_np_allbands):
+        found_min, found_max, hist, bin_edges = get_max_min_histogram_percent_oneband(img_oneband, bin_count,
+                                                                                                min_percent=per_min,
+                                                                                                max_percent=per_max,
+                                                                                                nodata=src_nodata)
+        print('min and max value from histogram (percent cut):', found_min, found_max)
+        if min_max_values is not None:
+            if found_min < min_max_values[band][0]:
+                found_min = min_max_values[band][0]
+                print('reset the min value to %s' % found_min)
+            if found_max > min_max_values[band][1]:
+                found_max = min_max_values[band][1]
+                print('reset the max value to %s' % found_max)
+        if found_min == found_max:
+            print('warning, found_min == find_max, set the output as nodata or found_min')
+            new_img_np[band, :] = dst_nodata if dst_nodata is not None else found_min
+        else:
+            new_img_np[band,:] = image_numpy_to_8bit(img_oneband, found_max, found_min, src_nodata=src_nodata, dst_nodata=dst_nodata)
+
+    if input_ndim == 3:
+        return new_img_np
+    else:
+        # remove the add dimension
+        return np.squeeze(new_img_np)
+
+
+def image_read_pre_process(image_path, src_nodata=None):
+    '''
+    return a max and min value for normalization (0-1)
+    :param image_path: image path
+    :param tile_width:
+    :param tile_height:
+    :return:
+    '''
+    data, nodata = read_raster_one_band_np(image_path)
+    # if nodata is not set
+    if nodata is None:
+        nodata = src_nodata
+
+    if nodata is not None:
+        data[data==nodata] = np.nan   # set nodata as nan
+    else:
+        print('Warning, nodata value is not set')
+
+    # if set lower_quantile=0.01, it makes "min_cnt = np.sum(s_s_array == np.min(s_s_array)); min_cnt < 100" failed in "otsu_and_lm_for_a_array"
+    data = quantile_clip(data,  upper_quantile=0.99)
+    data = threshold_clip(data,lower=0.0)
+    # raster_tools.map_to_interval(0, 1)
+
+    min_value = np.nanmin(data)
+    max_value = np.nanmax(data)
+    mean_value = np.nanmean(data)
+    medium_value = np.nanmedian(data)
+
+    return data, min_value,max_value, mean_value,medium_value
+
 
 def main():
     pass

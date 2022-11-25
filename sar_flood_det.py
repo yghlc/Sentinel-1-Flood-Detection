@@ -21,6 +21,7 @@ from SAR_Flood_Detection_v02 import write_geotiff
 from SAR_Flood_Detection_v02 import mk_outdirectory
 
 import raster_tools
+from raster_tools import image_read_pre_process
 
 from BimodalThreshold_module_v02 import BimodalThreshold
 
@@ -37,35 +38,6 @@ def get_sar_file_list(file_or_dir):
     return sar_Sigma_files
 
 
-def image_read_pre_process(image_path, src_nodata=None):
-    '''
-    return a max and min value for normalization (0-1)
-    :param image_path: image path
-    :param tile_width:
-    :param tile_height:
-    :return:
-    '''
-    data, nodata = raster_tools.read_raster_one_band_np(image_path)
-    # if nodata is not set
-    if nodata is None:
-        nodata = src_nodata
-
-    if nodata is not None:
-        data[data==nodata] = np.nan   # set nodata as nan
-    else:
-        print('Warning, nodata value is not set')
-
-    # if set lower_quantile=0.01, it makes "min_cnt = np.sum(s_s_array == np.min(s_s_array)); min_cnt < 100" failed in "otsu_and_lm_for_a_array"
-    data = raster_tools.quantile_clip(data,  upper_quantile=0.99)
-    data = raster_tools.threshold_clip(data,lower=0.0)
-    # raster_tools.map_to_interval(0, 1)
-
-    min_value = np.nanmin(data)
-    max_value = np.nanmax(data)
-    mean_value = np.nanmean(data)
-    medium_value = np.nanmedian(data)
-
-    return data, min_value,max_value, mean_value,medium_value
 
 def permant_water_pixles(sar_image_2d, sar_grd_path,water_mask_file,save_dir):
     # locate pixels for permanent water
