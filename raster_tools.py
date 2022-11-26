@@ -131,6 +131,45 @@ def read_raster_one_band_np(raster_path, band=1, boundary=None):
         #     data[ data == src.nodata ] = np.nan
         return data, src.nodata
 
+def read_raster_in_polygons_mask(raster_path, polygons, nodata=None, all_touched=True, crop=True,
+                                 bands = None, save_path=None):
+    # using mask to get pixels in polygons
+    # see more information of the parameter in the function: mask
+
+    if isinstance(polygons, list) is False:
+        polygon_list = [polygons]
+    else:
+        polygon_list = polygons
+
+    with rasterio.open(raster_path) as src:
+        # crop image and saved to disk
+        out_image, out_transform = mask(src, polygon_list, nodata=nodata, all_touched=all_touched, crop=crop,
+                                        indexes=bands)
+
+        # print(out_image.shape)
+        if out_image.ndim == 2:
+            height, width = out_image.shape
+            band_count = 1
+        else:
+            band_count, height, width = out_image.shape
+        if nodata is None:  # if it None, copy from the src file
+            nodata = src.nodata
+        if save_path is not None:
+            # save it to disk
+            out_meta = src.meta.copy()
+            out_meta.update({"driver": "GTiff",
+                             "height": height,
+                             "width": width,
+                             "count": band_count,
+                             "transform": out_transform,
+                             "nodata": nodata})  # note that, the saved image have a small offset compared to the original ones (~0.5 pixel)
+            if out_image.ndim == 2:
+                out_image = out_image.reshape((1, height, width))
+            with rasterio.open(save_path, "w", **out_meta) as dest:
+                dest.write(out_image)
+
+        return out_image, out_transform, nodata
+
 
 def save_numpy_array_to_rasterfile(numpy_array, save_path, ref_raster, format='GTiff', nodata=None,
                                    compress=None, tiled=None, bigtiff=None, boundary=None, verbose=True):

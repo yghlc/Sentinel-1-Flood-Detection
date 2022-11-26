@@ -10,6 +10,10 @@ add time: 24 November, 2022
 
 import os,sys
 import json
+import shutil
+import subprocess
+
+import time
 
 # ---------------------------------------------------------------------------
 # making the output directory
@@ -18,6 +22,11 @@ def mk_outdirectory(outpath_full):
         print("Making output directory: ", outpath_full)
         os.makedirs(outpath_full)
     return
+
+def outputlogMessage(message):
+    timestr = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime() )
+    outstr = timestr +': '+ message
+    print(outstr)
 
 def is_file_exist(file_path):
     # check if a file exists
@@ -82,6 +91,188 @@ def read_dict_from_txt_json(file_path):
     with open(file_path) as f_obj:
         data = json.load(f_obj)
         return data
+
+def get_file_list_by_ext(ext,folder,bsub_folder):
+    """
+
+    Args:
+        ext: extension name of files want to find, can be string for a single extension or list for multi extension
+        eg. '.tif'  or ['.tif','.TIF']
+        folder:  This is the directory, which needs to be explored.
+        bsub_folder: True for searching sub folder, False for searching current folder only
+
+    Returns: a list with the files abspath ,eg. ['/user/data/1.tif','/user/data/2.tif']
+    Notes: if input error, it will exit the program
+    """
+
+    extension = []
+    if isinstance(ext, str):
+        extension.append(ext)
+    elif isinstance(ext, list):
+        extension = ext
+    else:
+        raise ValueError('input extension type is not correct')
+    if os.path.isdir(folder) is False:
+        raise IOError('input error, directory %s is invalid'%folder)
+    if isinstance(bsub_folder,bool) is False:
+        raise ValueError('input error, bsub_folder must be a bool value')
+
+    files = []
+    sub_folders = []
+    sub_folders.append(folder)
+
+    while len(sub_folders) > 0:
+        current_sear_dir = sub_folders[0]
+        file_names = os.listdir(current_sear_dir)
+        file_names = [os.path.join(current_sear_dir,item) for item in file_names]
+        for str_file in file_names:
+            if os.path.isdir(str_file):
+                sub_folders.append(str_file)
+                continue
+            ext_name = os.path.splitext(str_file)[1]
+            for temp in extension:
+                if ext_name == temp:
+                    # files.append(os.path.abspath(os.path.join(current_sear_dir,str_file)))
+                    files.append(str_file)
+                    break
+        if bsub_folder is False:
+            break
+        sub_folders.pop(0)
+
+    return files
+
+
+def delete_file_or_dir(path):
+    """
+    remove a file or folder
+    Args:
+        path: the name of file or folder
+
+    Returns: True if successful, False otherwise
+    Notes: if IOError occurs or path not exist, it will exit the program
+    """
+    try:
+        if os.path.isfile(path):
+            os.remove(path)
+        elif os.path.isdir(path):
+            shutil.rmtree(path)
+        else:
+            print('%s not exist'%path)
+            assert False
+    except IOError:
+        print('remove file or dir failed : ' + str(IOError))
+        assert False
+
+    return True
+
+def delete_shape_file(input):
+    arg1 = os.path.splitext(input)[0]
+    exts = ['.shx', '.shp','.prj','.dbf','.cpg']
+    for ext in exts:
+        file_path = arg1 + ext
+        if os.path.isfile(file_path):
+            delete_file_or_dir(file_path)
+    if os.path.isfile(input):
+        delete_shape_file(input)
+    return True
+
+def copy_file_to_dst(file_path, dst_name, overwrite=False):
+    """
+    copy file to a destination file
+    Args:
+        file_path: the copied file
+        dst_name: destination file name
+
+    Returns: True if successful or already exist, False otherwise.
+    Notes:  if IOError occurs, it will exit the program
+    """
+    if os.path.isfile(dst_name) and overwrite is False:
+        outputlogMessage("%s already exist, skip copy file"%dst_name)
+        return True
+
+    if file_path==dst_name:
+        outputlogMessage('warning: shutil.SameFileError')
+        return True
+
+    try:
+        shutil.copy(file_path,dst_name)
+    # except shutil.SameFileError:
+    #     basic.outputlogMessage('warning: shutil.SameFileError')
+    #     pass
+    except IOError:
+        raise IOError('copy file failed: '+ file_path)
+
+
+
+    if not os.path.isfile(dst_name):
+        outputlogMessage('copy file failed, from %s to %s.'%(file_path,dst_name))
+        return False
+    else:
+        outputlogMessage('copy file success: '+ file_path)
+        return True
+
+def copy_shape_file(input, output):
+
+    assert is_file_exist(input)
+
+    arg1 = os.path.splitext(input)[0]
+    arg2 = os.path.splitext(output)[0]
+    # arg_list = ['cp_shapefile', arg1, arg2]
+    # return basic.exec_command_args_list_one_file(arg_list, output)
+
+    copy_file_to_dst(arg1+'.shx', arg2 + '.shx', overwrite=True)
+    copy_file_to_dst(arg1+'.shp', arg2 + '.shp', overwrite=True)
+    copy_file_to_dst(arg1+'.prj', arg2 + '.prj', overwrite=True)
+    copy_file_to_dst(arg1+'.dbf', arg2 + '.dbf', overwrite=True)
+
+    outputlogMessage('finish copying %s to %s'%(input,output))
+
+    return True
+
+
+def os_system_exit_code(command_str):
+    '''
+    run a common string, check the exit code
+    :param command_str:
+    :return:
+    '''
+    res = os.system(command_str)
+    if res != 0:
+        sys.exit(1)
+
+def exec_command_args_list_one_file(args_list, output):
+    """
+    execute a command string
+    Args:
+        args_list: a list contains args
+
+    Returns:
+
+    """
+    ps = subprocess.Popen(args_list)
+    returncode = ps.wait()
+    if os.path.isfile(output):
+        return output
+    else:
+        outputlogMessage('return codes: ' + str(returncode))
+        return False
+
+def get_name_by_adding_tail(basename,tail):
+    """
+    create a new file name by add a tail to a exist file name
+    Args:
+        basename: exist file name
+        tail: the tail name
+
+    Returns: a new name if successfull
+    Notes: if input error, it will exit program
+
+    """
+    text = os.path.splitext(basename)
+    if len(text)<2:
+        outputlogMessage('ERROR: incorrect input file name: %s'%basename)
+        assert False
+    return text[0]+'_'+tail+text[1]
 
 
 
