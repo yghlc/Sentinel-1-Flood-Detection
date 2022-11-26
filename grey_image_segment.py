@@ -13,6 +13,7 @@ from optparse import OptionParser
 
 import raster_tools
 import utility
+import time
 
 from image_segment import quickshift_segmentaion
 from image_segment import mean_shift_segmentation
@@ -63,7 +64,8 @@ def segment_a_patch(idx, patch, patch_count,img_path, org_raster,b_save_patch_la
     out_labels = quickshift_segmentaion(one_band_img,ratio=0.3, kernel_size=5, max_dist=10,
                            sigma=1, convert2lab=False)
 
-    # out_labels = felzenszwalb_segmentation(one_band_img,scale=3.0, sigma=0.95, min_size=5)
+    # felzenszwalb is much quicker, ~10x, but results is not good
+    # out_labels = felzenszwalb_segmentation(one_band_img,scale=3.0, sigma=0.95, min_size=10)
 
     #
     #
@@ -184,24 +186,35 @@ def segment_a_grey_image(img_path, save_dir,process_num, org_raster=None,b_save_
 
 
 def test_segment_a_grey_image():
-    data_dir = os.path.expanduser('~/Data/Arctic/canada_arctic/DEM/WR_dem_diff')
-    img_path = os.path.join(data_dir,'WR_extent_grid_ids_DEM_diff_grid9274_8bit.tif')
+    t0 = time.time()
+    # data_dir = os.path.expanduser('~/Data/Arctic/canada_arctic/DEM/WR_dem_diff')
+    # img_path = os.path.join(data_dir,'WR_extent_grid_ids_DEM_diff_grid9274_8bit.tif')
+    # # org_raster = os.path.join(data_dir,'WR_extent_grid_ids_DEM_diff_grid9274.tif')
+    # save_dir = os.path.join(data_dir,'segment_parallel_9274')
+    # process_num = 8
+    # b_save_patch_label = True
+
+    data_dir = os.path.expanduser('~/Data/tmp_data/flood_detection/Nebraska/fd_segmentation')
+    img_path = os.path.join(data_dir,'S1B_IW_GRDH_1SDV_20190317T002127_20190317T002156_015387_01CD01_01DD_Sigma0_VH_8bit_sub1.tif')
     # org_raster = os.path.join(data_dir,'WR_extent_grid_ids_DEM_diff_grid9274.tif')
-    save_dir = os.path.join(data_dir,'segment_parallel_9274')
-    process_num = 8
-    b_save_patch_label = True
+    save_dir = os.path.join(data_dir,'segment_parallel_01DD')
+    process_num = 4
+    b_save_patch_label = False
+
     segment_a_grey_image(img_path, save_dir, process_num, org_raster=None, b_save_patch_label=b_save_patch_label)
 
+    print('complete, cost %d seconds'%(time.time() -  t0))
 
 def main(options, args):
+    test_segment_a_grey_image()
 
-    img_path = args[0]
-    utility.is_file_exist(img_path)
-    save_dir = options.save_dir
-    process_num = options.process_num
-    org_elevation_diff = options.elevation_diff
-
-    segment_a_grey_image(img_path,save_dir,process_num,org_raster=org_elevation_diff)
+    # img_path = args[0]
+    # utility.is_file_exist(img_path)
+    # save_dir = options.save_dir
+    # process_num = options.process_num
+    # org_elevation_diff = options.elevation_diff
+    #
+    # segment_a_grey_image(img_path,save_dir,process_num,org_raster=org_elevation_diff)
 
 
 if __name__ == "__main__":
