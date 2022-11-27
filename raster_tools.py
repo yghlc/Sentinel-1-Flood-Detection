@@ -25,6 +25,8 @@ import time
 #Color interpretation https://rasterio.readthedocs.io/en/latest/topics/color.html
 from rasterio.enums import ColorInterp
 
+import utility
+
 from subprocess import Popen, PIPE, STDOUT
 def run_pOpen(cmd_str):
     ps = Popen(cmd_str, shell=True, stdin=PIPE, stdout=PIPE, stderr=STDOUT)
@@ -610,6 +612,20 @@ def image_numpy_allBands_to_8bit_hist(img_np_allbands, min_max_values=None, per_
         # remove the add dimension
         return np.squeeze(new_img_np)
 
+def unset_nodata(raster_path):
+    # remove nodato (it was copy from the input image)
+    command_str = 'gdal_edit.py -unsetnodata ' + raster_path
+    utility.os_system_exit_code(command_str)
+
+def set_water_color_map(raster_path):
+    with rasterio.open(raster_path, 'r+') as dst:
+        color_map_dict = {0: (230, 230, 230, 255),
+                              1: (31, 120, 180, 255),  # light blue for water
+                              128: (255, 255, 255, 255),  # nodata
+                              255: (31, 120, 180, 255)}  # light blue for water, in some file, 255 is water
+        dst.write_colormap(1, color_map_dict)
+
+    return True
 
 def image_read_pre_process(image_path, src_nodata=None):
     '''
@@ -640,6 +656,41 @@ def image_read_pre_process(image_path, src_nodata=None):
     medium_value = np.nanmedian(data)
 
     return data, min_value,max_value, mean_value,medium_value
+
+def permant_water_pixles(sar_image_2d, sar_grd_path,water_mask_file,save_dir):
+    # locate pixels for permanent water
+    # statistic the sigma0 value of these pixels
+
+    name, ext = os.path.splitext(os.path.basename(sar_grd_path))
+    mask_save_path = os.path.join(save_dir,name + '_PerWaterMask'+ext)
+
+    surface_water_crop = resample_crop_raster(sar_grd_path, water_mask_file, output_raster=mask_save_path, resample_method='near')
+    if surface_water_crop is False:
+        return False
+
+    data, nodata = read_raster_one_band_np(surface_water_crop)
+
+    if data.shape != sar_image_2d.shape:
+        raise ValueError('the size of water mask (%s) and the SAR (%s) is different'%(str(data.shape), str(sar_image_2d.shape)))
+
+    # in the surface water, 1 is water, 0 are other, 255 are ocean
+    per_water_loc = np.where(data==1)
+    per_nonland_loc = np.where(np.logical_or(data==1, data==255))
+
+    # statistics on SAR images
+    array_per_water = sar_image_2d[per_water_loc]
+    # print(array_per_water.shape)
+    array_per_water = array_per_water[~np.isnan(array_per_water) ] # remove nan
+    # print(array_per_water.shape)
+
+    pixel_count = array_per_water.size
+    min = np.min(array_per_water)
+    max = np.max(array_per_water)
+    mean = np.mean(array_per_water)
+    median = np.median(array_per_water)
+    std = np.std(array_per_water)
+
+    return per_nonland_loc, pixel_count, min, max, mean, median, std
 
 
 def main():

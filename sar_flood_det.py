@@ -15,64 +15,14 @@ import time
 
 import numpy as np
 
-from SAR_Flood_Detection_v02 import Run_amplitude_algorithm
-from SAR_Flood_Detection_v02 import save_metadata
-from SAR_Flood_Detection_v02 import write_geotiff
-from SAR_Flood_Detection_v02 import mk_outdirectory
+from SAR_Flood_Detection_v02 import Run_amplitude_algorithm,save_metadata,write_geotiff,mk_outdirectory
 
 import raster_tools
-from raster_tools import image_read_pre_process
+from raster_tools import image_read_pre_process,permant_water_pixles
 
 from BimodalThreshold_module_v02 import BimodalThreshold
 
-def get_sar_file_list(file_or_dir):
-    if os.path.isdir(file_or_dir):
-        sar_Sigma_files = glob.glob(os.path.join(file_or_dir, '*Sigma0_VV.tif'))  # Process VV files
-        if len(sar_Sigma_files) == 0:  ## Process VH files, if VV is empty
-            sar_Sigma_files = glob.glob(os.path.join(file_or_dir, '*Sigma0_VH.tif'))
-    else:
-        with open(file_or_dir,'r') as f_obj:
-            sar_Sigma_files = [line.strip() for line in f_obj.readlines()]
-    if len(sar_Sigma_files) == 0:
-        raise ValueError("No SAR Sigma0 in %s"%file_or_dir)
-    return sar_Sigma_files
-
-
-
-def permant_water_pixles(sar_image_2d, sar_grd_path,water_mask_file,save_dir):
-    # locate pixels for permanent water
-    # statistic the sigma0 value of these pixels
-
-    name, ext = os.path.splitext(os.path.basename(sar_grd_path))
-    mask_save_path = os.path.join(save_dir,name + '_PerWaterMask'+ext)
-
-    surface_water_crop = raster_tools.resample_crop_raster(sar_grd_path, water_mask_file, output_raster=mask_save_path, resample_method='near')
-    if surface_water_crop is False:
-        return False
-
-    data, nodata = raster_tools.read_raster_one_band_np(surface_water_crop)
-
-    if data.shape != sar_image_2d.shape:
-        raise ValueError('the size of water mask (%s) and the SAR (%s) is different'%(str(data.shape), str(sar_image_2d.shape)))
-
-    # in the surface water, 1 is water, 0 are other, 255 are ocean
-    per_water_loc = np.where(data==1)
-    per_nonland_loc = np.where(np.logical_or(data==1, data==255))
-
-    # statistics on SAR images
-    array_per_water = sar_image_2d[per_water_loc]
-    # print(array_per_water.shape)
-    array_per_water = array_per_water[~np.isnan(array_per_water) ] # remove nan
-    # print(array_per_water.shape)
-
-    pixel_count = array_per_water.size
-    min = np.min(array_per_water)
-    max = np.max(array_per_water)
-    mean = np.mean(array_per_water)
-    median = np.median(array_per_water)
-    std = np.std(array_per_water)
-
-    return per_nonland_loc, pixel_count, min, max, mean, median, std
+from utility import get_sar_file_list
 
 
 def flood_detection_from_SAR_amplitude(sar_image_list, save_dir,dst_nodata=128, src_nodata=None, water_mask_file=None,g_water_thr=None,

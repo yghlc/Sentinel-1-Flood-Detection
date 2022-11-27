@@ -12,6 +12,7 @@ import os,sys
 import json
 import shutil
 import subprocess
+import glob
 
 import time
 
@@ -273,6 +274,18 @@ def get_name_by_adding_tail(basename,tail):
         outputlogMessage('ERROR: incorrect input file name: %s'%basename)
         assert False
     return text[0]+'_'+tail+text[1]
+
+def get_sar_file_list(file_or_dir):
+    if os.path.isdir(file_or_dir):
+        sar_Sigma_files = glob.glob(os.path.join(file_or_dir, '*Sigma0_VV.tif'))  # Process VV files
+        if len(sar_Sigma_files) == 0:  ## Process VH files, if VV is empty
+            sar_Sigma_files = glob.glob(os.path.join(file_or_dir, '*Sigma0_VH.tif'))
+    else:
+        with open(file_or_dir,'r') as f_obj:
+            sar_Sigma_files = [line.strip() for line in f_obj.readlines()]
+    if len(sar_Sigma_files) == 0:
+        raise ValueError("No SAR Sigma0 in %s"%file_or_dir)
+    return sar_Sigma_files
 
 
 
