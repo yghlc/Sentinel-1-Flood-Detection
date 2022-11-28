@@ -325,9 +325,15 @@ def quantile_clip(band, lower_quantile=None, upper_quantile=None):
 
 
 # maps the values in an image to a different interval defined by [a, b]
-def map_to_interval(band, a, b):
-    arr_min = np.min(band)
-    arr_max = np.max(band)
+def map_to_interval(band, a, b, data_min=None, data_max = None):
+    if data_min is not None:
+        arr_min = data_min
+    else:
+        arr_min = np.min(band)
+    if data_max is not None:
+        arr_max = data_max
+    else:
+        arr_max = np.max(band)
     frac = (b-a) / (arr_max-arr_min)
     new_band = a + frac*(band - arr_min)
     band = new_band
@@ -627,12 +633,13 @@ def set_water_color_map(raster_path):
 
     return True
 
-def image_read_pre_process(image_path, src_nodata=None):
+def image_read_pre_process(image_path, src_nodata=None, b_normalized=False):
     '''
     return a max and min value for normalization (0-1)
     :param image_path: image path
     :param tile_width:
     :param tile_height:
+    :param b_normalized: if True, will be normalized to 0 -1
     :return:
     '''
     data, nodata = read_raster_one_band_np(image_path)
@@ -648,10 +655,11 @@ def image_read_pre_process(image_path, src_nodata=None):
     # if set lower_quantile=0.01, it makes "min_cnt = np.sum(s_s_array == np.min(s_s_array)); min_cnt < 100" failed in "otsu_and_lm_for_a_array"
     data = quantile_clip(data,  upper_quantile=0.99)
     data = threshold_clip(data,lower=0.0)
-    # raster_tools.map_to_interval(0, 1)
-
     min_value = np.nanmin(data)
     max_value = np.nanmax(data)
+    if b_normalized:
+        data = map_to_interval(data, 0, 1, data_min=min_value, data_max=max_value)
+
     mean_value = np.nanmean(data)
     medium_value = np.nanmedian(data)
 
