@@ -659,6 +659,9 @@ def image_read_pre_process(image_path, src_nodata=None, b_normalized=False):
     max_value = np.nanmax(data)
     if b_normalized:
         data = map_to_interval(data, 0, 1, data_min=min_value, data_max=max_value)
+        # calculate the min, max value again
+        min_value = np.nanmin(data)
+        max_value = np.nanmax(data)
 
     mean_value = np.nanmean(data)
     medium_value = np.nanmedian(data)
