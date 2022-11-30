@@ -319,8 +319,6 @@ def identify_similar_cluser(main_cluster_label,kmean,similarity):
 def save_flood_clusters(kmean_label_path,out_labels, save_path, regions, sel_reg_idxs=None, per_water_loc=None, nan_loc=None,dst_nodata=128,verbose=True):
     kmean_label_np, nodata = raster_tools.read_raster_one_band_np(kmean_label_path)
     save_np = np.zeros_like(kmean_label_np)
-    if nan_loc is not None:
-        save_np[nan_loc] = dst_nodata
     save_np[ np.isin(kmean_label_np,out_labels) ] = 1
     # remove permanent water surface
     if per_water_loc is not None:
@@ -333,6 +331,8 @@ def save_flood_clusters(kmean_label_path,out_labels, save_path, regions, sel_reg
             select_np[reg.coords[:, 0], reg.coords[:, 1]] = 1
         save_np = save_np*select_np
 
+    if nan_loc is not None:
+        save_np[nan_loc] = dst_nodata
     save_np = save_np.astype(np.uint8)
     raster_tools.save_numpy_array_to_rasterfile(save_np,save_path,kmean_label_path,nodata=dst_nodata,
                                                 compress='lzw', tiled='yes', bigtiff='if_safer',verbose=verbose)
