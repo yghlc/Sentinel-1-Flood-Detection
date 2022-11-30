@@ -457,25 +457,26 @@ def test_flood_segment_from_SAR_amplitude():
                                      water_mask_file=water_mask_tif,dem_file=dem_file, process_num=4)
 
 def main(options, args):
-    test_flood_segment_from_SAR_amplitude()
+    # test_flood_segment_from_SAR_amplitude()
 
-    # sar_image_list = get_sar_file_list(args[0])
-    # sar_image_list = [os.path.abspath(item) for item in sar_image_list]
-    # save_dir = os.path.abspath(options.save_dir)
-    # water_mask = options.water_mask
-    # verbose = options.verbose
-    #
-    # src_nodata = options.src_nodata
-    # dst_nodata = options.out_nodata
-    # process_num = options.process_num
-    # global_water_threshold = options.global_water_threshold
-    # n_clusters = options.kmean_cluster
-    #
-    # print(datetime.now(), 'Found %d SAR Sigma0 images from %s:' % (len(sar_image_list), args[0]))
-    # print(datetime.now(), 'Will save flood detection results to %s' % save_dir)
-    #
-    # segment_flood_from_SAR_amplitude(sar_image_list, save_dir, n_cluster=n_clusters, src_nodata=src_nodata, dst_nodata=dst_nodata, water_mask_file=water_mask,
-    #                                  process_num=process_num)
+    sar_image_list = get_sar_file_list(args[0])
+    sar_image_list = [os.path.abspath(item) for item in sar_image_list]
+    save_dir = os.path.abspath(options.save_dir)
+    water_mask = options.water_mask
+    dem_file = options.elevation_file
+    verbose = options.verbose
+
+    src_nodata = options.src_nodata
+    dst_nodata = options.out_nodata
+    process_num = options.process_num
+    global_water_threshold = options.global_water_threshold
+    n_clusters = options.kmean_cluster
+
+    print(datetime.now(), 'Found %d SAR Sigma0 images from %s:' % (len(sar_image_list), args[0]))
+    print(datetime.now(), 'Will save flood detection results to %s' % save_dir)
+
+    segment_flood_from_SAR_amplitude(sar_image_list, save_dir, n_cluster=n_clusters, src_nodata=src_nodata, dst_nodata=dst_nodata,
+                                     water_mask_file=water_mask,dem_file=dem_file, process_num=process_num)
 
 
 
@@ -511,6 +512,10 @@ if __name__ == '__main__':
     parser.add_option("-w", "--water_mask",
                       action="store", dest="water_mask",
                       help="a file containing the permanent water surface")
+
+    parser.add_option("-e", "--elevation_file",
+                      action="store", dest="elevation_file",
+                      help="path to the DEM")
 
     parser.add_option("-v", "--verbose",
                       action="store_true", dest="verbose", default=False,
