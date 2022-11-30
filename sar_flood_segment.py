@@ -37,7 +37,8 @@ thr_dis_flood_to_permaWater = 2000 # 2000 pixel (i.e 20 km)  # a flooded region 
 
 
 
-def sar_sigma0_to_8bit(img_path,sar_img_data, save_8bit_path, min_percent=0.01, max_percent=0.99, hist_bin_count=10000, src_nodata=None,dst_nodata=0):
+def sar_sigma0_to_8bit(img_path,sar_img_data, save_8bit_path, min_percent=0.01, max_percent=0.99, hist_bin_count=10000,
+                       src_nodata=None,dst_nodata=0, verbose=True):
 
     if os.path.isfile(save_8bit_path):
         return True
@@ -49,7 +50,7 @@ def sar_sigma0_to_8bit(img_path,sar_img_data, save_8bit_path, min_percent=0.01, 
 
     # save to disk
     return raster_tools.save_numpy_array_to_rasterfile(img_array_8bit,save_8bit_path,img_path,
-                                             nodata=dst_nodata,compress='lzw',tiled='yes',bigtiff='if_safer')
+                                             nodata=dst_nodata,compress='lzw',tiled='yes',bigtiff='if_safer',verbose=verbose)
 
 def run_segmentation(org_raster, save_8bit_path,segment_shp_path, save_dir, process_num = 1, b_vector=False ):
     # get initial polygons
@@ -386,6 +387,35 @@ def k_mean_cluster_classification(img_data, grd, regions, sar_features_list, n_c
     return out_label
 
 
+def permanent_water_filter(water_reg_means, verbose=True):
+    feature_array = feature_list_to_feature_array([water_reg_means])
+    n_clusters = 3
+    # divide to three
+    water_cluster = k_mean_cluster(feature_array, n_clusters=n_clusters, verbose=True)
+
+    # for ii in range(n_clusters):
+    #     reg_loc = np.where(water_cluster.labels_ == ii)
+    #     print('cluster %d, region count: %d'%(ii+1, reg_loc[0].size), water_cluster.cluster_centers_[ii])
+
+    # find the smallest
+    zero_np = np.array([[0]])
+    dis_transform = water_cluster.transform(zero_np)
+    # print(dis_transform)
+    # print(np.argmin(dis_transform))
+    min_loc = np.argmin(dis_transform)
+
+    # re-calculate the mean
+    sel_loc = np.argwhere(water_cluster.labels_ == min_loc)
+    new_water_reg_means = [water_reg_means[item[0]] for item in sel_loc]
+    # print(new_water_reg_means)
+    new_overall_mean = np.mean(new_water_reg_means)
+    if verbose:
+        print('select %d water regions from %d ones and re-calculate their mean: %f'%(len(new_water_reg_means), len(water_reg_means),new_overall_mean))
+
+    return new_overall_mean, new_water_reg_means
+
+    pass
+
 def segment_flood_from_SAR_amplitude(sar_image_list, save_dir,n_cluster=20, dst_nodata=128, src_nodata=None, water_mask_file=None,
                                      dem_file=None,g_water_thr=None, verbose=False,process_num=1):
     '''
@@ -442,7 +472,7 @@ def segment_flood_from_SAR_amplitude(sar_image_list, save_dir,n_cluster=20, dst_
         # to 8 bit, then segment
         save_8bit_path = os.path.join(save_dir,file_name_noext + '_8bit.tif')
         sar_sigma0_to_8bit(grd, img_data, save_8bit_path, min_percent=0.01, max_percent=0.99,
-                           hist_bin_count=10000, src_nodata=None, dst_nodata=0)
+                           hist_bin_count=10000, src_nodata=None, dst_nodata=0,verbose=verbose)
 
         t2 = time.time()
         seg_label = run_segmentation(grd, save_8bit_path, segment_shp_path, save_dir, process_num=process_num, b_vector=False)
@@ -452,6 +482,10 @@ def segment_flood_from_SAR_amplitude(sar_image_list, save_dir,n_cluster=20, dst_
         reg_means,reg_stds, reg_dem_means, reg_to_water_diss, regions, water_reg_means, water_reg_dem_means,water_reg_to_water_diss \
             = get_object_attributes(img_data,nan_loc, seg_label, dem_path=grd_dem_file, water_regions = water_regions, verbose=verbose, process_num=process_num)
         print(datetime.now(), 'got region attributes, cost %f seconds' % (time.time() - t2))
+
+        # handle some permanent water regions are not dark: because of (1) different timing of SAR images and the dataset of permanent water surface
+        # (2) uncertainties in the dataset of permanent water surface
+        p_water_mean, water_reg_means = permanent_water_filter(water_reg_means, verbose=True)
 
         # cluster based on super-pixels, using k-mean
         cluster_label_path = os.path.join(save_dir, file_name_noext + '_kmean_label.tif')
