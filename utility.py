@@ -15,6 +15,7 @@ import subprocess
 import glob
 
 import time
+import math
 
 # ---------------------------------------------------------------------------
 # making the output directory
@@ -288,6 +289,8 @@ def get_sar_file_list(file_or_dir):
     return sar_Sigma_files
 
 
+def meters_to_degrees_onEarth(distance):
+    return (distance/6371000.0)*180.0/math.pi
 
 if __name__ == '__main__':
     pass

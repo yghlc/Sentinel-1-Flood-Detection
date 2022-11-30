@@ -28,6 +28,11 @@ from sklearn import cluster
 # for projection in lat, lon, this should be very small
 tile_min_overlap = 1e-10
 from multiprocessing import Pool
+from scipy.spatial.distance import cdist
+
+# define some threshold
+
+
 
 def sar_sigma0_to_8bit(img_path,sar_img_data, save_8bit_path, min_percent=0.01, max_percent=0.99, hist_bin_count=10000, src_nodata=None,dst_nodata=0):
 
@@ -77,7 +82,58 @@ def cal_one_region_attribute(org_img_data,reg):
     reg_array = org_img_data[reg.coords[:, 0], reg.coords[:, 1]]  # row, col
     return np.nanmean(reg_array),np.nanstd(reg_array)
 
-def get_object_attributes(org_img_data, label_path, process_num=1):
+def calculate_region_to_nearest_water_dis(regions, water_regions):
+    # centroid array  # Centroid coordinate tuple (row, col)
+    reg_centroid_arr = np.array([ item.centroid for item in regions])
+    # print(reg_centroid_arr.shape)
+    water_centroid_arr = np.array([ item.centroid for item in water_regions])
+    # print(water_centroid_arr.shape)
+
+    # https://docs.scipy.org/doc/scipy/reference/generated/scipy.spatial.distance.cdist.html
+    all_dist = cdist(reg_centroid_arr,water_centroid_arr)
+    # print(all_dist.shape)
+    min_dist = np.min(all_dist,axis=1)
+    # print(min_dist.shape)
+
+    return min_dist
+
+
+def get_permanent_water_regions(permanent_water_path,nan_loc):
+    # get water regions
+    water_raster_np, water_nodata = raster_tools.read_raster_one_band_np(permanent_water_path)
+    if water_nodata is not None:
+        water_raster_np[water_raster_np == water_nodata] = 0
+    water_raster_np[nan_loc] = 0
+    labels = measure.label(water_raster_np, background=0, connectivity=2)       # 1 is water, 0 is not
+    regions = measure.regionprops(labels)
+    # only keep large ones
+    regions = [item for item in regions if item.area > 1000]  # greater than 1000 pixels
+    print('the count of permanent water regions:', len(regions))
+
+    return regions
+
+def get_permanent_water_attributes(sar_img_data, sar_grd_file, sar_nan_loc, water_mask_file, save_dir):
+    t2 = time.time()
+    p_water_loc, p_water_count, p_water_min, p_water_max, p_water_mean, p_water_median, p_water_std, grd_p_water_file = \
+        permant_water_pixles(sar_img_data, sar_grd_file, water_mask_file, save_dir)
+
+    print(datetime.now(), 'preparation of permanent water surface cost %f seconds' % (time.time() - t2))
+
+    water_regions = get_permanent_water_regions(grd_p_water_file, sar_nan_loc)
+
+    # # for test: save water regions
+    # water_region_np = np.zeros_like(sar_img_data)
+    # for idx, reg in enumerate(water_regions):
+    #     water_region_np[reg.coords[:, 0], reg.coords[:, 1]] = idx + 1
+    #     print(idx+1, reg.area)
+    # water_region_np[sar_nan_loc] = -9999
+    # water_region_np = water_region_np.astype(np.int32)
+    # name_no_ext = os.path.splitext(os.path.basename(sar_grd_file))[0]
+    # raster_tools.save_numpy_array_to_rasterfile(water_region_np,name_no_ext+'_water_regions.tif',sar_grd_file)
+
+    return  p_water_loc, p_water_count, p_water_mean,  p_water_std, water_regions
+
+def get_object_attributes(org_img_data,nan_loc, label_path, dem_path = None, water_regions=None, process_num=1):
     raster_tools.unset_nodata(label_path)
     label_raster_np, label_nodata =  raster_tools.read_raster_one_band_np(label_path)
     # print(label_raster_np, label_nodata)
@@ -93,11 +149,19 @@ def get_object_attributes(org_img_data, label_path, process_num=1):
     # print(regions)
     # calculate attribute: mean, std of SAR sigma0
     # print(org_img_data.shape)
+    dem_raster_np, dem_nodata = raster_tools.read_raster_one_band_np(dem_path)
+    dem_raster_np = dem_raster_np.astype(np.float32)
+    if dem_nodata is not None:
+        dem_raster_np[dem_raster_np==dem_nodata] = np.nan
+    dem_raster_np[nan_loc] = np.nan
+    dem_raster_np = raster_tools.map_to_interval(dem_raster_np,0,1) # normalized to 0, 1
 
     # total_pixel_count = 0
     reg_means = []
     # reg_areas = []
     reg_stds = []
+    reg_dem_means = []
+
 
     # regions from skimage.measure.regionprops doesn't support parallel calculation
     # if process_num == 1:
@@ -105,6 +169,9 @@ def get_object_attributes(org_img_data, label_path, process_num=1):
         reg_array = org_img_data[reg.coords[:,0],reg.coords[:,1]]   # row, col
         reg_means.append(np.nanmean(reg_array))
         reg_stds.append(np.nanstd(reg_array))
+        # calculate DEM values
+        reg_dem_array = dem_raster_np[reg.coords[:,0],reg.coords[:,1]]   # row, col
+        reg_dem_means.append(np.nanmean(reg_dem_array))
             # reg_areas.append(reg.area)       # pixel count
     # elif process_num > 1:
     #     theadPool = Pool(process_num)
@@ -118,7 +185,35 @@ def get_object_attributes(org_img_data, label_path, process_num=1):
     # else:
     #     raise ValueError('Wrong value of process_num: %s'%str(process_num))
 
-    return reg_means,reg_stds,regions # reg_stds, reg_areas,
+    # calculate to the distance to water surface
+    reg_to_water_diss = calculate_region_to_nearest_water_dis(regions, water_regions)  # unit: pixel
+    reg_to_water_diss = raster_tools.map_to_interval(reg_to_water_diss,0,1)
+
+    # get attributes for permanent water regions
+    water_reg_means = []
+    water_reg_dem_means = []
+    water_reg_to_water_diss = []
+    for idx, reg in enumerate(water_regions):
+        reg_array = org_img_data[reg.coords[:,0],reg.coords[:,1]]   # row, col
+        water_reg_means.append(np.nanmean(reg_array))
+        # water_reg_means.append(np.nanstd(reg_array))
+        # calculate DEM values
+        reg_dem_array = dem_raster_np[reg.coords[:,0],reg.coords[:,1]]   # row, col
+        water_reg_dem_means.append(np.nanmean(reg_dem_array))
+
+        # # calculate the distance, 0? not good
+        # center = np.array([reg.centroid])
+        # print(center)
+        # points = np.zeros((reg.area, 2)) #np.array(reg.coords[:,0],reg.coords[:,1])
+        # points[:,0] = reg.coords[:,0]
+        # points[:,1] = reg.coords[:,1]
+        # print(points)
+        # dis_point2center = cdist(points, center)
+        # print(dis_point2center)
+        # water_reg_to_water_diss.append(np.nanmean(dis_point2center))
+    # water_reg_to_water_diss = raster_tools.map_to_interval(water_reg_to_water_diss,0,1)
+
+    return reg_means,reg_stds,reg_dem_means, reg_to_water_diss, regions, water_reg_means, water_reg_dem_means,water_reg_to_water_diss
 
 
 def k_mean_cluster(feature_array, n_clusters=8):
@@ -194,6 +289,15 @@ def kmean_predict(kmean, feature_array):
     out_label = kmean.predict(feature_array)
     return out_label
 
+def identify_similar_cluser(main_cluster_label,kmean,similarity):
+    main_cluster_center = kmean.cluster_centers_[main_cluster_label]
+    select_labels = []
+    for idx, center in enumerate(kmean.cluster_centers_):
+        if np.linalg.norm(main_cluster_center - center) <= similarity:
+            select_labels.append(idx)
+    select_labels.remove(main_cluster_label)
+    return select_labels
+
 def save_flood_clusters(kmean_label_path,out_labels, save_path, per_water_loc=None, nan_loc=None,dst_nodata=128):
     kmean_label_np, nodata = raster_tools.read_raster_one_band_np(kmean_label_path)
     save_np = np.zeros_like(kmean_label_np)
@@ -207,9 +311,53 @@ def save_flood_clusters(kmean_label_path,out_labels, save_path, per_water_loc=No
                                                 compress='lzw', tiled='yes', bigtiff='if_safer')
     return True
 
+def feature_list_to_feature_array(feature_list):
+    # each feature should have the same length
+    n_samples = len(feature_list[0])
+    n_feature =  len(feature_list)
+    for idx in range(1,n_feature):
+        if len(feature_list[idx]) != n_samples:
+            raise ValueError('expected sample count: %d but get %d'%(n_samples, len(feature_list[idx])))
+    feature_array = np.zeros((n_samples,n_feature))
+    for idx, fea in enumerate(feature_list):
+        feature_array[:,idx] = np.array(feature_list[idx])
+    feature_array = np.nan_to_num(feature_array)
+    return feature_array
 
-def segment_flood_from_SAR_amplitude(sar_image_list, save_dir,n_cluster=20, dst_nodata=128, src_nodata=None, water_mask_file=None,g_water_thr=None,
-                                    verbose=False,process_num=1):
+
+def k_mean_cluster_classification(img_data, grd, regions, sar_features_list, n_cluster, p_water_features_list, nan_loc,cluster_label_path):
+
+    t2 = time.time()
+    feature_array = feature_list_to_feature_array(sar_features_list)
+
+    kmeans = k_mean_cluster(feature_array, n_clusters=n_cluster)
+    # print(km_clusters)
+    label2newLabel = save_k_mean_labels(kmeans, regions, img_data, grd, cluster_label_path, nan_loc=nan_loc)
+    print(datetime.now(), 'k-mean cluster analysis, cost %f seconds' % (time.time() - t2))
+
+    # classification: for super-pixels, based on pixels value from permanent body or a global threshold
+    water_feature_array = feature_list_to_feature_array(p_water_features_list)
+    out_label = list(kmean_predict(kmeans, water_feature_array))
+
+    out_transform = kmeans.transform(water_feature_array) # get distance to the cluster centers
+    print('transform:', out_transform)
+    water_cluster_dis = np.min(out_transform,axis=1)
+    similarity_dis = np.mean(water_cluster_dis)
+
+    sim_labels = []
+    for c_label in out_label:
+        sim_labels.extend(identify_similar_cluser(c_label, kmeans, similarity_dis))
+    out_label.extend(sim_labels)
+    print('out_label before re-labeling:', out_label)
+    out_label = [label2newLabel[item] for item in out_label]
+    print('out_label:', out_label)
+
+    return out_label
+
+
+
+def segment_flood_from_SAR_amplitude(sar_image_list, save_dir,n_cluster=20, dst_nodata=128, src_nodata=None, water_mask_file=None,
+                                     dem_file=None,g_water_thr=None, verbose=False,process_num=1):
     '''
 
     :param sar_image_list: a list of SAR Sigma0 image
@@ -239,10 +387,21 @@ def segment_flood_from_SAR_amplitude(sar_image_list, save_dir,n_cluster=20, dst_
 
         t2 = time.time()
         # image process, mask nodata region
-        img_data, min, max, mean, median = image_read_pre_process(grd, src_nodata=src_nodata)
+        img_data, min, max, mean, median = image_read_pre_process(grd, src_nodata=src_nodata,b_normalized=True)
         nan_loc = np.where(np.isnan(img_data))
         print(datetime.now(),'read and preprocess, size:',img_data.shape,'min, max, mean, median',min, max, mean, median,
               'cost %f seconds'%(time.time()-t2))
+
+        # get attributes of permanent water surface
+        p_water_loc, p_water_count, p_water_mean,  p_water_std, water_regions = \
+            get_permanent_water_attributes(img_data,grd,nan_loc,water_mask_file,save_dir)
+        if p_water_count < 5000:  # small than 5000 pixels
+            # do something
+            print(datetime.now(), 'no big river or lakes in the scene')
+            continue
+
+        # get the corresponding elevation
+        grd_dem_file = raster_tools.get_elevation_raster(grd, dem_file, save_dir)
 
         segment_shp_path = os.path.join(save_dir, file_name_noext + '.gpkg')
 
@@ -253,38 +412,24 @@ def segment_flood_from_SAR_amplitude(sar_image_list, save_dir,n_cluster=20, dst_
 
         t2 = time.time()
         seg_label = run_segmentation(grd, save_8bit_path, segment_shp_path, save_dir, process_num=process_num, b_vector=False)
-        print(datetime.now(),'segmentation cost %f seconds'%(time.time()-t2))
+        print(datetime.now(),'segmentation of the SAR image cost %f seconds'%(time.time()-t2))
 
         t2 = time.time()
-        reg_means,reg_stds,regions = get_object_attributes(img_data,seg_label,process_num=process_num)
+        reg_means,reg_stds, reg_dem_means, reg_to_water_diss, regions, water_reg_means, water_reg_dem_means,water_reg_to_water_diss \
+            = get_object_attributes(img_data,nan_loc, seg_label, dem_path=grd_dem_file, water_regions = water_regions, process_num=process_num)
         print(datetime.now(), 'got region attributes, cost %f seconds' % (time.time() - t2))
 
         # cluster based on super-pixels, using k-mean
-        t2 = time.time()
-        feature_array = np.array(reg_means)
-        # feature_array = np.zeros((len(reg_means),2))
-        # feature_array[:,0] = np.array(reg_means)
-        # feature_array[:,1] = np.array(reg_stds)
-        kmeans = k_mean_cluster(feature_array,n_clusters=n_cluster)
-        # print(km_clusters)
-        save_cluster_path = os.path.join(save_dir,file_name_noext + '_kmean_label.tif')
-        label2newLabel = save_k_mean_labels(kmeans, regions, img_data, grd, save_cluster_path,nan_loc=nan_loc)
-        print(datetime.now(), 'k-mean cluster analysis, cost %f seconds' % (time.time() - t2))
+        cluster_label_path = os.path.join(save_dir, file_name_noext + '_kmean_label.tif')
+        sar_features_list = [reg_means,reg_dem_means] # , ,reg_to_water_diss
+        water_feature_list = [water_reg_means,water_reg_dem_means] # , , water_reg_to_water_diss
 
-        # classification: for super-pixels, based on pixels value from permanent body or a global threshold
-        p_water_loc, p_water_count, p_water_min, p_water_max, p_water_mean, p_water_median, p_water_std = \
-            permant_water_pixles(img_data, grd, water_mask_file, save_dir)
-        if p_water_count < 5000:
-            # do something
-            continue
-        water_feature_array = np.array([p_water_mean])
-        out_label = kmean_predict(kmeans,water_feature_array)
-        out_label = [label2newLabel[item] for item in out_label]
-        print('out_label:',out_label)
+        flood_labels = k_mean_cluster_classification(img_data, grd, regions, sar_features_list, n_cluster, water_feature_list,
+                                      nan_loc, cluster_label_path)
 
         # save results
         save_fd_path =  os.path.join(save_dir,file_name_noext + '_FD_result.tif')
-        save_flood_clusters(save_cluster_path,out_label,save_fd_path,per_water_loc=p_water_loc,nan_loc=nan_loc,dst_nodata=dst_nodata)
+        save_flood_clusters(cluster_label_path,flood_labels,save_fd_path,per_water_loc=p_water_loc,nan_loc=nan_loc,dst_nodata=dst_nodata)
         raster_tools.set_water_color_map(save_fd_path)
 
         # save_metadata
@@ -306,29 +451,31 @@ def test_flood_segment_from_SAR_amplitude():
     n_cluster = 20
     save_dir = os.path.join(work_dir,'fd_segmentation')
     water_mask_tif = os.path.expanduser('~/Data/global_surface_water/extent_epsg4326_theUS/surface_water_theUS_3_2020.tif')
+    dem_file = os.path.expanduser('~/Data/flooding_area/DEM/SRTM_Nebraska/nebraska_SRTM.tif')
 
-    segment_flood_from_SAR_amplitude(sar_image_list,save_dir,n_cluster=n_cluster,src_nodata=0, water_mask_file=water_mask_tif,process_num=4)
+    segment_flood_from_SAR_amplitude(sar_image_list,save_dir,n_cluster=n_cluster,src_nodata=0,
+                                     water_mask_file=water_mask_tif,dem_file=dem_file, process_num=4)
 
 def main(options, args):
-    # test_flood_segment_from_SAR_amplitude()
+    test_flood_segment_from_SAR_amplitude()
 
-    sar_image_list = get_sar_file_list(args[0])
-    sar_image_list = [os.path.abspath(item) for item in sar_image_list]
-    save_dir = os.path.abspath(options.save_dir)
-    water_mask = options.water_mask
-    verbose = options.verbose
-
-    src_nodata = options.src_nodata
-    dst_nodata = options.out_nodata
-    process_num = options.process_num
-    global_water_threshold = options.global_water_threshold
-    n_clusters = options.kmean_cluster
-
-    print(datetime.now(), 'Found %d SAR Sigma0 images from %s:' % (len(sar_image_list), args[0]))
-    print(datetime.now(), 'Will save flood detection results to %s' % save_dir)
-
-    segment_flood_from_SAR_amplitude(sar_image_list, save_dir, n_cluster=n_clusters, src_nodata=src_nodata, dst_nodata=dst_nodata, water_mask_file=water_mask,
-                                     process_num=process_num)
+    # sar_image_list = get_sar_file_list(args[0])
+    # sar_image_list = [os.path.abspath(item) for item in sar_image_list]
+    # save_dir = os.path.abspath(options.save_dir)
+    # water_mask = options.water_mask
+    # verbose = options.verbose
+    #
+    # src_nodata = options.src_nodata
+    # dst_nodata = options.out_nodata
+    # process_num = options.process_num
+    # global_water_threshold = options.global_water_threshold
+    # n_clusters = options.kmean_cluster
+    #
+    # print(datetime.now(), 'Found %d SAR Sigma0 images from %s:' % (len(sar_image_list), args[0]))
+    # print(datetime.now(), 'Will save flood detection results to %s' % save_dir)
+    #
+    # segment_flood_from_SAR_amplitude(sar_image_list, save_dir, n_cluster=n_clusters, src_nodata=src_nodata, dst_nodata=dst_nodata, water_mask_file=water_mask,
+    #                                  process_num=process_num)
 
 
 
