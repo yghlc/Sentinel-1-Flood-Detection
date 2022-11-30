@@ -704,6 +704,7 @@ def permant_water_pixles(sar_image_2d, sar_grd_path,water_mask_file,save_dir):
     return per_nonland_loc, pixel_count, min, max, mean, median, std, mask_save_path
 
 def get_elevation_raster(sar_grd_path,dem_file,save_dir):
+    utility.is_file_exist(dem_file)
     name, ext = os.path.splitext(os.path.basename(sar_grd_path))
     save_path = os.path.join(save_dir,name + '_DEM'+ext)
     dem_resample_crop = resample_crop_raster(sar_grd_path, dem_file, output_raster=save_path, resample_method='near')
