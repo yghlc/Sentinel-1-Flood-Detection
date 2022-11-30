@@ -320,10 +320,6 @@ def save_flood_clusters(kmean_label_path,out_labels, save_path, regions, sel_reg
     kmean_label_np, nodata = raster_tools.read_raster_one_band_np(kmean_label_path)
     save_np = np.zeros_like(kmean_label_np)
     save_np[ np.isin(kmean_label_np,out_labels) ] = 1
-    # remove permanent water surface
-    if per_water_loc is not None:
-        save_np[per_water_loc] = 0
-
     if sel_reg_idxs is not None:
         select_np = np.zeros_like(save_np)
         for idx in sel_reg_idxs:
@@ -331,6 +327,9 @@ def save_flood_clusters(kmean_label_path,out_labels, save_path, regions, sel_reg
             select_np[reg.coords[:, 0], reg.coords[:, 1]] = 1
         save_np = save_np*select_np
 
+    # remove permanent water surface
+    if per_water_loc is not None:
+        save_np[per_water_loc] = 0
     if nan_loc is not None:
         save_np[nan_loc] = dst_nodata
     save_np = save_np.astype(np.uint8)
