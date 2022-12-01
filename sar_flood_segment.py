@@ -40,7 +40,7 @@ proc_metadata_path = 'seg_kmeans_meta.txt'
 def update_proc_metadata_path(grd_path, save_dir):
     global proc_metadata_path
     filename = utility.get_name_no_ext(grd_path)
-    proc_metadata_path = os.path.join(save_dir, filename+'_proc_meta.txt')
+    proc_metadata_path = os.path.join(save_dir, filename+'_procMeta.txt')
 
 
 def sar_sigma0_to_8bit(img_path,sar_img_data, save_8bit_path, min_percent=0.01, max_percent=0.99, hist_bin_count=10000,
