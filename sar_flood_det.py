@@ -41,7 +41,7 @@ def flood_detection_from_SAR_amplitude(sar_image_list, save_dir,dst_nodata=128, 
         if ptf:
             img_data = np.where(img_data > 0., img_data ** v, 0.)  # power transform
 
-        p_water_loc, p_water_count, p_water_min, p_water_max, p_water_mean, p_water_median, p_water_std = \
+        p_water_loc, p_water_count, p_water_min, p_water_max, p_water_mean, p_water_median, p_water_std, grd_p_water_file = \
             permant_water_pixles(img_data, grd, water_mask_file, save_dir)
 
         # run bimodal threshold
