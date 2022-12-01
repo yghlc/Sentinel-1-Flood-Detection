@@ -292,8 +292,14 @@ def get_sar_file_list(file_or_dir):
 def write_metadata(key, value, filename=None):
     if filename is None:
         filename = 'metadata.txt'
-    with open(filename,'a') as f_obj:
-        f_obj.writelines(str(key)+': '+str(value) + '\n')
+    # with open(filename,'a') as f_obj:
+    #     f_obj.writelines(str(key)+': '+str(value) + '\n')
+    if os.path.isfile(filename):
+        meta_dict = read_dict_from_txt_json(filename)
+    else:
+        meta_dict = {}
+    meta_dict[str(key)] = str(value)
+    save_dict_to_txt_json(filename,meta_dict)
 
 def meters_to_degrees_onEarth(distance):
     return (distance/6371000.0)*180.0/math.pi
