@@ -146,9 +146,9 @@ def get_permanent_water_attributes(sar_img_data, sar_grd_file, sar_nan_loc, wate
         water_region_np[reg.coords[:, 0], reg.coords[:, 1]] = idx + 1
         if verbose:
             print(idx+1, reg.area)
-    water_region_np[sar_nan_loc] = -9999
+    water_region_np[sar_nan_loc] = 0
     water_region_np = water_region_np.astype(np.int32)
-    raster_tools.save_numpy_array_to_rasterfile(water_region_np,water_region_path,sar_grd_file,nodata=-9999,compress='lzw',
+    raster_tools.save_numpy_array_to_rasterfile(water_region_np,water_region_path,sar_grd_file,nodata=0,compress='lzw',
                                                 tiled='yes', bigtiff='if_safer',verbose=verbose)
 
     return  p_water_loc, p_water_count, p_water_mean,  p_water_std, water_regions, water_reg_means, water_region_path
