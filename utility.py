@@ -284,6 +284,7 @@ def get_sar_file_list(file_or_dir):
     else:
         with open(file_or_dir,'r') as f_obj:
             sar_Sigma_files = [line.strip() for line in f_obj.readlines()]
+            sar_Sigma_files = [ os.path.expanduser(item) for item in sar_Sigma_files]
     if len(sar_Sigma_files) == 0:
         raise ValueError("No SAR Sigma0 in %s"%file_or_dir)
     return sar_Sigma_files
