@@ -289,6 +289,11 @@ def get_sar_file_list(file_or_dir):
         raise ValueError("No SAR Sigma0 in %s"%file_or_dir)
     return sar_Sigma_files
 
+def write_metadata(key, value, filename=None):
+    if filename is None:
+        filename = 'metadata.txt'
+    with open(filename,'a') as f_obj:
+        f_obj.writelines(str(key)+': '+str(value) + '\n')
 
 def meters_to_degrees_onEarth(distance):
     return (distance/6371000.0)*180.0/math.pi

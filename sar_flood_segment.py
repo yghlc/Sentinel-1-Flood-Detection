@@ -35,6 +35,12 @@ thr_perma_water_area = 10000 # pixel                         # required minimum 
 thr_min_size_of_permaWater = 1000   # pixel  (i.e 0.01 km^2)  #
 thr_dis_flood_to_permaWater = 2000 # 2000 pixel (i.e 20 km)  # a flooded region should be within a ditance of river or lake?
 
+proc_metadata_path = 'seg_kmeans_meta.txt'
+
+def update_proc_metadata_path(grd_path, save_dir):
+    global proc_metadata_path
+    filename = utility.get_name_no_ext(grd_path)
+    proc_metadata_path = os.path.join(save_dir, filename+'_proc_meta.txt')
 
 
 def sar_sigma0_to_8bit(img_path,sar_img_data, save_8bit_path, min_percent=0.01, max_percent=0.99, hist_bin_count=10000,
@@ -455,6 +461,9 @@ def segment_flood_from_SAR_amplitude(sar_image_list, save_dir,n_cluster=20, dst_
         if os.path.isfile(save_fd_path):
             print('Flood detection results for %s exist, skip'%grd)
             continue
+        update_proc_metadata_path(grd,save_dir)
+        utility.write_metadata('Input Image',os.path.basename(grd),filename=proc_metadata_path)
+        utility.write_metadata('Input Folder',os.path.dirname(grd),filename=proc_metadata_path)
 
         t2 = time.time()
         # image process, mask nodata region
@@ -462,6 +471,10 @@ def segment_flood_from_SAR_amplitude(sar_image_list, save_dir,n_cluster=20, dst_
         nan_loc = np.where(np.isnan(img_data))
         print(datetime.now(),'read and preprocess, size:',img_data.shape,'min, max, mean, median',min, max, mean, median,
               'cost %f seconds'%(time.time()-t2))
+        utility.write_metadata('Image Height', img_data.shape[0],filename=proc_metadata_path)
+        utility.write_metadata('Image Width', img_data.shape[1], filename=proc_metadata_path)
+        utility.write_metadata('Image Segmentation', 'Quick Shift', filename=proc_metadata_path)
+        utility.write_metadata('Machine Learning method', 'K-means clustering', filename=proc_metadata_path)
 
         # get attributes of permanent water surface
         p_water_loc, p_water_count, p_water_mean,  p_water_std, water_regions,water_reg_means, water_regions_path = \
@@ -516,7 +529,8 @@ def segment_flood_from_SAR_amplitude(sar_image_list, save_dir,n_cluster=20, dst_
         raster_tools.set_water_color_map(save_fd_path)
 
         # save_metadata
-        #save_metadata(granule, infile_path, img_raster_obj, tile_size, array_size, otsus, lms, 20, save_dir)
+        utility.write_metadata('Output Map',os.path.basename(save_fd_path),filename=proc_metadata_path)
+        utility.write_metadata('Output Folder',os.path.dirname(save_fd_path),filename=proc_metadata_path)
 
         # remove unnecessary files
         files_to_rm = [save_8bit_path,segment_shp_path,seg_label, grd_dem_file,water_regions_path,cluster_label_path]
