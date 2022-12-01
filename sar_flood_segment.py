@@ -567,7 +567,7 @@ def main(options, args):
     print(datetime.now(), 'Will save flood detection results to %s' % save_dir)
 
     segment_flood_from_SAR_amplitude(sar_image_list, save_dir, n_cluster=n_clusters, src_nodata=src_nodata, dst_nodata=dst_nodata,
-                                     water_mask_file=water_mask,dem_file=dem_file, process_num=process_num)
+                                     water_mask_file=water_mask,dem_file=dem_file, verbose=verbose, process_num=process_num)
 
 
 
