@@ -34,7 +34,7 @@ def flood_detection_from_SAR_amplitude(sar_image_list, save_dir,dst_nodata=128, 
         t1 = time.time()
         print(datetime.now(), '(%d/%d) Processing: %s' % (idx + 1, total_count, os.path.basename(grd)))
 
-        filename, ext = os.path.splitext(grd)
+        filename, ext = os.path.splitext(os.path.basename(grd))
         final_LM_map = os.path.join(save_dir, filename + '_' + 'LM' + ext)
         if os.path.isfile(final_LM_map):
             print('%s already exists, skip'%final_LM_map)
