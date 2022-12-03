@@ -378,7 +378,10 @@ class BimodalThreshold(Image_proc):
                 peak1 = np.min(peak_list)
                 meta_idx = np.argmin(peak_list)
                 pidx = pidx_list[meta_idx] + 1
-                peak2 = peaks[pidx]
+                if len(peaks) < pidx:
+                    peak2 = 0
+                else:
+                    peak2 = peaks[pidx]
 
                 for valley in valleys:
                     if valley > peak1 and valley < peak2: lm_threshold = valley
