@@ -34,6 +34,12 @@ def flood_detection_from_SAR_amplitude(sar_image_list, save_dir,dst_nodata=128, 
         t1 = time.time()
         print(datetime.now(), '(%d/%d) Processing: %s' % (idx + 1, total_count, os.path.basename(grd)))
 
+        filename, ext = os.path.splitext(grd)
+        final_LM_map = os.path.join(save_dir, filename + '_' + 'LM' + ext)
+        if os.path.isfile(final_LM_map):
+            print('%s aleady exists, skip')
+            continue
+
         # image process, mask nodata region
         img_data, min, max, mean, median = image_read_pre_process(grd, src_nodata=src_nodata,b_normalized=True)
         print(datetime.now(),'read and preprocess, size:',img_data.shape,'min, max, mean, median',min, max, mean, median)
