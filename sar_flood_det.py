@@ -23,6 +23,7 @@ from raster_tools import image_read_pre_process,permant_water_pixles
 from BimodalThreshold_module_v02 import BimodalThreshold
 
 from utility import get_sar_file_list
+import utility
 
 
 def flood_detection_from_SAR_amplitude(sar_image_list, save_dir,dst_nodata=128, src_nodata=None, water_mask_file=None,g_water_thr=None,
@@ -104,6 +105,7 @@ def flood_detection_from_SAR_amplitude(sar_image_list, save_dir,dst_nodata=128, 
             map_type = 'OTSU'
             tiff_outname = write_geotiff(save_dir, img_raster_obj, granule, otsu_map, map_type, nodata=dst_nodata, compress='lzw', b_colormap=True)
 
+        utility.delete_file_or_dir(grd_p_water_file)
 
         print(datetime.now(), 'Complete, took %s seconds' % (time.time() - t1))
 
