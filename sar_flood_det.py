@@ -48,7 +48,8 @@ def flood_detection_from_SAR_amplitude(sar_image_list, save_dir,dst_nodata=128, 
         tile_size = 1456*3
         array_size = 182*3
         B_thresh = 0.65
-        bt = BimodalThreshold(grd,save_dir,tile_size,array_size,B_thresh,b_otsu=True)
+        b_otsu = False
+        bt = BimodalThreshold(grd,save_dir,tile_size,array_size,B_thresh,b_otsu=b_otsu)
 
         otsus, lms = bt.otsu_and_lm_for_an_image(img_data,verbose=verbose,process_num=process_num)
 
