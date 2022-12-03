@@ -27,20 +27,13 @@ RUN conda install -c conda-forge -y geopandas
 RUN conda install -c conda-forge -y rasterio
 RUN conda install -c conda-forge -y scikit-image
 RUN conda install -c conda-forge -y simplekml
-RUN conda install -c conda-forge -y asf_search
 
-RUN pip install opencv-python
+# only the image segmentation need opencv
+#RUN pip install opencv-python
 RUN pip install elevation
 
 # t: tarball, i index-cache p: package  y: Do not ask for confirmation
 RUN conda clean -tipy
-
-# install SNAP
-RUN wget --quiet https://download.esa.int/step/snap/9.0/installers/esa-snap_all_unix_9_0_0.sh -O ~/esa-snap.sh && \
-    /bin/sh ~/esa-snap.sh -q -dir /opt/snap  && rm ~/esa-snap.sh
-
-# update SNAP when a container launch?
-#RUN /opt/snap/bin/snap --nosplash --nogui --modules --update-all
 
 # clone github repo
 RUN git clone https://github.com/yghlc/Sentinel-1-Pre-Processing.git /opt/Sentinel-1-Pre-Processing  && \
