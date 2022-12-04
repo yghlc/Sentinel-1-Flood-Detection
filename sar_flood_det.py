@@ -94,7 +94,7 @@ def flood_detection_from_SAR_amplitude(sar_image_list, save_dir,dst_nodata=128, 
             lm_map = np.where(img_data < lm, 1, 0)  # lm_map is a binary image of pixels above the threshold; Converts values greater than the mean (i.e. industrial(?)) to 1, all else to 0; a binary image of water(1) and non-water(0)
         inan = np.where(np.isnan(img_data))
         lm_map[inan] = dst_nodata  ## convert no data values
-        # lm_map[p_water_loc] = 0 ## apply permanent water mask
+        lm_map[p_water_loc] = 0 ## apply permanent water mask
         lm_map = lm_map.astype(np.uint8)
         map_type = 'LM'
         tiff_outname = write_geotiff(save_dir, img_raster_obj, granule, lm_map, map_type, nodata=dst_nodata, compress='lzw',b_colormap=True)  ## Write geotiff
