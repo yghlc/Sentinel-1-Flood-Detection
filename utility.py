@@ -144,6 +144,19 @@ def get_file_list_by_ext(ext,folder,bsub_folder):
     return files
 
 
+def get_file_list_by_pattern(folder,pattern):
+    """
+    get the file list by file pattern
+    :param folder: /home/hlc
+    :param pattern: eg. '*imgAug*.ini'
+    :return: the file list
+    """
+    file_pattern = os.path.join(folder, pattern)
+    file_list = glob.glob(file_pattern)
+    return file_list
+
+
+
 def delete_file_or_dir(path):
     """
     remove a file or folder
