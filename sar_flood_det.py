@@ -77,6 +77,11 @@ def flood_detection_from_SAR_amplitude(sar_image_list, save_dir,dst_nodata=128, 
         # ---------------------------------------------------------------------------
         ### Write output as Geotiff - lm
         lm = np.mean(lms)  # Calculate the mean of the upper threshold (lms) for all regions:
+        for tmp in sorted(lms):
+            if tmp > p_water_mean and tmp > p_water_median:
+                print(datetime.now(), 'Choose %.4f as the threshold, LM mean is %.4f'%(tmp, lm))
+                lm = tmp
+                break
         if p_water_count > 5000 and lm > p_water_mean + 3*p_water_std:
             print(datetime.now(),'Warning, the mean of LM is too large')
             if g_water_thr is not None:
