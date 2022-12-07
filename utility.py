@@ -291,9 +291,9 @@ def get_name_by_adding_tail(basename,tail):
 
 def get_sar_file_list(file_or_dir):
     if os.path.isdir(file_or_dir):
-        sar_Sigma_files = glob.glob(os.path.join(file_or_dir, '*Sigma0_VV.tif'))  # Process VV files
-        if len(sar_Sigma_files) == 0:  ## Process VH files, if VV is empty
-            sar_Sigma_files = glob.glob(os.path.join(file_or_dir, '*Sigma0_VH.tif'))
+        sar_Sigma_files = glob.glob(os.path.join(file_or_dir, '*Sigma0_VH.tif'))  # Process VV files
+        if len(sar_Sigma_files) == 0:  ## Process VV files, if VH is empty
+            sar_Sigma_files = glob.glob(os.path.join(file_or_dir, '*Sigma0_VV.tif'))
     else:
         with open(file_or_dir,'r') as f_obj:
             sar_Sigma_files = [line.strip() for line in f_obj.readlines()]
