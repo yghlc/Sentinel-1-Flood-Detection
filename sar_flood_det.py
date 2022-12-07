@@ -63,6 +63,9 @@ def flood_detection_from_SAR_amplitude(sar_image_list, save_dir,dst_nodata=128, 
 
         p_water_loc, p_water_count, p_water_min, p_water_max, p_water_mean, p_water_median, p_water_std, grd_p_water_file = \
             permant_water_pixles(img_data, grd, water_mask_file, save_dir)
+        utility.write_metadata(['Land_PerWater_PixelCount','sar_value_min_onPerWater','sar_value_max_onPerWater','sar_value_mean_onPerWater',
+                                'sar_value_median_onPerWater','sar_value_std_onPerWater'],
+                               [p_water_count, p_water_min, p_water_max, p_water_mean, p_water_median, p_water_std], filename=proc_metadata_path)
 
         # run bimodal threshold
         tile_size = 1456*3
@@ -99,7 +102,7 @@ def flood_detection_from_SAR_amplitude(sar_image_list, save_dir,dst_nodata=128, 
         lm = np.min(lms)
 
         utility.write_metadata(['Mean OTSU value', 'Mean LM value', 'OTSU Values','LM Values'],
-                               [str(np.mean(otsus)), str(np.mean(lms)), otsus, lms], filename=proc_metadata_path)
+                               [float(np.mean(otsus)), float(np.mean(lms)), otsus, lms], filename=proc_metadata_path)
         utility.write_metadata(['LM threshold'],[lm], filename=proc_metadata_path)
         if p_water_count > 5000 and lm > p_water_mean + 3*p_water_std:
             print(datetime.now(),'Warning, the mean of LM is too large')
