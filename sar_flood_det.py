@@ -55,7 +55,7 @@ def flood_detection_from_SAR_amplitude(sar_image_list, save_dir,dst_nodata=128, 
         print(datetime.now(),'read and preprocess, size:',img_data.shape,'min, max, mean, median',min, max, mean, median)
 
         utility.write_metadata(['Image Height','Image Width','Pixel Min','Pixel max','Pixel mean','Pixel median'],
-                               [img_data.shape[0],img_data.shape[1],min,max,mean,median],filename=proc_metadata_path)
+                               [img_data.shape[0],img_data.shape[1],float(min),float(max),float(mean),float(median)],filename=proc_metadata_path)
 
         if ptf:
             img_data = np.where(img_data > 0., img_data ** v, 0.)  # power transform
