@@ -48,13 +48,13 @@ def flood_detection_from_SAR_amplitude(sar_image_list, save_dir,dst_nodata=128, 
             continue
         update_proc_metadata_path(grd, save_dir)
 
-        utility.write_metadata(['Input Image','Input Image Path'], [os.path.basename(grd),os.path.dirname(grd)], filename=proc_metadata_path)
+        utility.write_metadata(['Input-Image','Input-Image-Path'], [os.path.basename(grd),os.path.dirname(grd)], filename=proc_metadata_path)
 
         # image process, mask nodata region
         img_data, min, max, mean, median = image_read_pre_process(grd, src_nodata=src_nodata,b_normalized=True)
         print(datetime.now(),'read and preprocess, size:',img_data.shape,'min, max, mean, median',min, max, mean, median)
 
-        utility.write_metadata(['Image Height','Image Width','Pixel Min','Pixel max','Pixel mean','Pixel median'],
+        utility.write_metadata(['Image-Height','Image-Width','Pixel-min','Pixel-max','Pixel-mean','Pixel-median'],
                                [img_data.shape[0],img_data.shape[1],float(min),float(max),float(mean),float(median)],filename=proc_metadata_path)
 
         if ptf:
@@ -63,8 +63,8 @@ def flood_detection_from_SAR_amplitude(sar_image_list, save_dir,dst_nodata=128, 
 
         p_water_loc, p_water_count, p_water_min, p_water_max, p_water_mean, p_water_median, p_water_std, grd_p_water_file = \
             permant_water_pixles(img_data, grd, water_mask_file, save_dir)
-        utility.write_metadata(['Land_PerWater_PixelCount','sar_value_min_onPerWater','sar_value_max_onPerWater','sar_value_mean_onPerWater',
-                                'sar_value_median_onPerWater','sar_value_std_onPerWater'],
+        utility.write_metadata(['Land-PerWater-PixelCount','sar-value-min-onPerWater','sar-value-max-onPerWater','sar-value-mean-onPerWater',
+                                'sar-value-median-onPerWater','sar-value-std-onPerWater'],
                                [p_water_count, float(p_water_min), float(p_water_max), float(p_water_mean), float(p_water_median), float(p_water_std)], filename=proc_metadata_path)
 
         # run bimodal threshold
@@ -72,7 +72,7 @@ def flood_detection_from_SAR_amplitude(sar_image_list, save_dir,dst_nodata=128, 
         array_size = 182*3
         B_thresh = 0.65
         b_otsu = False
-        utility.write_metadata(['Final Block Size','Final S-array Size','BCV threshold'], [tile_size,array_size,B_thresh], filename=proc_metadata_path)
+        utility.write_metadata(['Final-Block-Size','Final-S-array-Size','BCV-threshold'], [tile_size,array_size,B_thresh], filename=proc_metadata_path)
         bt = BimodalThreshold(grd,save_dir,tile_size,array_size,B_thresh,b_otsu=b_otsu)
 
         otsus, lms = bt.otsu_and_lm_for_an_image(img_data,verbose=verbose,process_num=process_num)
@@ -101,9 +101,9 @@ def flood_detection_from_SAR_amplitude(sar_image_list, save_dir,dst_nodata=128, 
                 break
         lm = np.min(lms)
 
-        utility.write_metadata(['Mean OTSU value', 'Mean LM value', 'OTSU Values','LM Values'],
+        utility.write_metadata(['Mean-OTSU-value', 'Mean-LM-value', 'OTSU-Values','LM-Values'],
                                [float(np.mean(otsus)), float(np.mean(lms)), otsus, lms], filename=proc_metadata_path)
-        utility.write_metadata(['LM threshold'],[lm], filename=proc_metadata_path)
+        utility.write_metadata(['LM-threshold'],[lm], filename=proc_metadata_path)
         if p_water_count > 5000 and lm > p_water_mean + 3*p_water_std:
             print(datetime.now(),'Warning, the mean of LM is too large')
             if g_water_thr is not None:
@@ -120,10 +120,10 @@ def flood_detection_from_SAR_amplitude(sar_image_list, save_dir,dst_nodata=128, 
         lm_map = lm_map.astype(np.uint8)
         map_type = 'LM'
         tiff_outname = write_geotiff(save_dir, img_raster_obj, granule, lm_map, map_type, nodata=dst_nodata, compress='lzw',b_colormap=True)  ## Write geotiff
-        utility.write_metadata(['LM Output Image', 'LM Output Path'],
+        utility.write_metadata(['LM-Output-Image', 'LM-Output-Path'],
                                [os.path.basename(tiff_outname), os.path.dirname(tiff_outname)], filename=proc_metadata_path)
         flood_pixel_count = (lm_map==1).sum()
-        utility.write_metadata('LM Flood Pixel Percentage', 100.0*flood_pixel_count/(lm_map.size - inan[0].size) , filename=proc_metadata_path)
+        utility.write_metadata('LM-Flood-Pixel-Percentage', 100.0*flood_pixel_count/(lm_map.size - inan[0].size) , filename=proc_metadata_path)
 
         if len(otsus) > 0:
             # ---------------------------------------------------------------------------
@@ -135,10 +135,10 @@ def flood_detection_from_SAR_amplitude(sar_image_list, save_dir,dst_nodata=128, 
             otsu_map = otsu_map.astype(np.uint8)
             map_type = 'OTSU'
             tiff_outname = write_geotiff(save_dir, img_raster_obj, granule, otsu_map, map_type, nodata=dst_nodata, compress='lzw', b_colormap=True)
-            utility.write_metadata(['OTSU Output Image', 'OTSU Output Path'],[os.path.basename(tiff_outname),
+            utility.write_metadata(['OTSU-Output-Image', 'OTSU-Output-Path'],[os.path.basename(tiff_outname),
                                     os.path.dirname(tiff_outname)], filename=proc_metadata_path)
             flood_pixel_count = (otsu_map == 1).sum()
-            utility.write_metadata('OTSU Flood Pixel Percentage',
+            utility.write_metadata('OTSU-Flood-Pixel-Percentage',
                                    100.0 * flood_pixel_count / (otsu_map.size - inan[0].size),
                                    filename=proc_metadata_path)
 
