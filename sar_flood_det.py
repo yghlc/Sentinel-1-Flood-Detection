@@ -65,7 +65,7 @@ def flood_detection_from_SAR_amplitude(sar_image_list, save_dir,dst_nodata=128, 
             permant_water_pixles(img_data, grd, water_mask_file, save_dir)
         utility.write_metadata(['Land_PerWater_PixelCount','sar_value_min_onPerWater','sar_value_max_onPerWater','sar_value_mean_onPerWater',
                                 'sar_value_median_onPerWater','sar_value_std_onPerWater'],
-                               [p_water_count, p_water_min, p_water_max, p_water_mean, p_water_median, p_water_std], filename=proc_metadata_path)
+                               [p_water_count, float(p_water_min), float(p_water_max), float(p_water_mean), float(p_water_median), float(p_water_std)], filename=proc_metadata_path)
 
         # run bimodal threshold
         tile_size = 1456*3
