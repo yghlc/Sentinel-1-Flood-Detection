@@ -25,12 +25,12 @@ from BimodalThreshold_module_v02 import BimodalThreshold
 from utility import get_sar_file_list
 import utility
 
-proc_metadata_path = 'FD_Results_meta.txt'
+proc_metadata_path = 'FD_Results_meta.json'
 
 def update_proc_metadata_path(grd_path, save_dir):
     global proc_metadata_path
     filename = utility.get_name_no_ext(grd_path)
-    proc_metadata_path = os.path.join(save_dir, filename+'_FD_Results_meta.txt')
+    proc_metadata_path = os.path.join(save_dir, filename+'_FD_Results_meta.json')
 
 def flood_detection_from_SAR_amplitude(sar_image_list, save_dir,dst_nodata=128, src_nodata=None, water_mask_file=None,g_water_thr=None,
                                        ptf=False,v=0.1,verbose=False,process_num=1):
