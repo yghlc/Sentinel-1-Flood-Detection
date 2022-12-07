@@ -674,7 +674,7 @@ def permant_water_pixles(sar_image_2d, sar_grd_path,water_mask_file,save_dir):
 
     name, ext = os.path.splitext(os.path.basename(sar_grd_path))
     mask_save_path = os.path.join(save_dir,name + '_PerWaterMask'+ext)
-    info_json_path = os.path.join(save_dir,name + '_PerWaterMask.json')
+    # info_json_path = os.path.join(save_dir,name + '_PerWaterMask.json')
 
     surface_water_crop = resample_crop_raster(sar_grd_path, water_mask_file, output_raster=mask_save_path, resample_method='near')
     if surface_water_crop is False:
@@ -703,16 +703,16 @@ def permant_water_pixles(sar_image_2d, sar_grd_path,water_mask_file,save_dir):
     std = np.std(array_per_water)
 
     # save to json
-    water_dict = {'sar_image_dir':os.path.dirname(sar_grd_path),
-                  'sar_image_file':os.path.basename(sar_grd_path),
-                  'Land_PerWater_PixelCount':pixel_count,
-                  'sar_value_min_onPerWater':float(min),
-                  'sar_value_max_onPerWater':float(max),
-                  'sar_value_mean_onPerWater':float(mean),
-                  'sar_value_median_onPerWater':float(median),
-                  'sar_value_std_onPerWater':float(std)}
+    # water_dict = {'sar_image_dir':os.path.dirname(sar_grd_path),
+    #               'sar_image_file':os.path.basename(sar_grd_path),
+    #               'Land_PerWater_PixelCount':pixel_count,
+    #               'sar_value_min_onPerWater':float(min),
+    #               'sar_value_max_onPerWater':float(max),
+    #               'sar_value_mean_onPerWater':float(mean),
+    #               'sar_value_median_onPerWater':float(median),
+    #               'sar_value_std_onPerWater':float(std)}
 
-    utility.save_dict_to_txt_json(info_json_path,water_dict)
+    # utility.save_dict_to_txt_json(info_json_path,water_dict)
 
     return per_nonland_loc, pixel_count, min, max, mean, median, std, mask_save_path
 
