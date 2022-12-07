@@ -120,7 +120,7 @@ def flood_detection_from_SAR_amplitude(sar_image_list, save_dir,dst_nodata=128, 
         lm_map = lm_map.astype(np.uint8)
         map_type = 'LM'
         tiff_outname = write_geotiff(save_dir, img_raster_obj, granule, lm_map, map_type, nodata=dst_nodata, compress='lzw',b_colormap=True)  ## Write geotiff
-        utility.write_metadata(['Output Image', 'Output Path'],
+        utility.write_metadata(['LM Output Image', 'LM Output Path'],
                                [os.path.basename(tiff_outname), os.path.dirname(tiff_outname)], filename=proc_metadata_path)
         flood_pixel_count = (lm_map==1).sum()
         utility.write_metadata('LM Flood Pixel Percentage', 100.0*flood_pixel_count/(lm_map.size - inan[0].size) , filename=proc_metadata_path)
@@ -135,8 +135,12 @@ def flood_detection_from_SAR_amplitude(sar_image_list, save_dir,dst_nodata=128, 
             otsu_map = otsu_map.astype(np.uint8)
             map_type = 'OTSU'
             tiff_outname = write_geotiff(save_dir, img_raster_obj, granule, otsu_map, map_type, nodata=dst_nodata, compress='lzw', b_colormap=True)
-            utility.write_metadata(['Output Image', 'Output Path'],[os.path.basename(tiff_outname),
+            utility.write_metadata(['OTSU Output Image', 'OTSU Output Path'],[os.path.basename(tiff_outname),
                                     os.path.dirname(tiff_outname)], filename=proc_metadata_path)
+            flood_pixel_count = (otsu_map == 1).sum()
+            utility.write_metadata('OTSU Flood Pixel Percentage',
+                                   100.0 * flood_pixel_count / (otsu_map.size - inan[0].size),
+                                   filename=proc_metadata_path)
 
         utility.delete_file_or_dir(grd_p_water_file)
 
