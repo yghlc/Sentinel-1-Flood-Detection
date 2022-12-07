@@ -303,6 +303,18 @@ def get_sar_file_list(file_or_dir):
     return sar_Sigma_files
 
 def write_metadata(key, value, filename=None):
+    if isinstance(key,list):
+        keys = key
+    else:
+        keys = [key]
+    if isinstance(value, list):
+        values = value
+    else:
+        values = [value]
+
+    if len(keys) != len(values):
+        raise ValueError('the number of keys (%d) and values (%d) is different'%(len(keys), len(values)))
+
     if filename is None:
         filename = 'metadata.txt'
     # with open(filename,'a') as f_obj:
@@ -311,7 +323,8 @@ def write_metadata(key, value, filename=None):
         meta_dict = read_dict_from_txt_json(filename)
     else:
         meta_dict = {}
-    meta_dict[str(key)] = str(value)
+    for k, v in zip(keys, values):
+        meta_dict[k] = v
     save_dict_to_txt_json(filename,meta_dict)
 
 def meters_to_degrees_onEarth(distance):

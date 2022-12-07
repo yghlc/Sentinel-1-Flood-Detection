@@ -25,6 +25,12 @@ from BimodalThreshold_module_v02 import BimodalThreshold
 from utility import get_sar_file_list
 import utility
 
+proc_metadata_path = 'FD_Results_meta.txt'
+
+def update_proc_metadata_path(grd_path, save_dir):
+    global proc_metadata_path
+    filename = utility.get_name_no_ext(grd_path)
+    proc_metadata_path = os.path.join(save_dir, filename+'_FD_Results_meta.txt')
 
 def flood_detection_from_SAR_amplitude(sar_image_list, save_dir,dst_nodata=128, src_nodata=None, water_mask_file=None,g_water_thr=None,
                                        ptf=False,v=0.1,verbose=False,process_num=1):
@@ -40,13 +46,20 @@ def flood_detection_from_SAR_amplitude(sar_image_list, save_dir,dst_nodata=128, 
         if os.path.isfile(final_LM_map):
             print('%s already exists, skip'%final_LM_map)
             continue
+        update_proc_metadata_path(grd, save_dir)
+
+        utility.write_metadata(['Input Image','Input Image Path'], [os.path.basename(grd),os.path.dirname(grd)], filename=proc_metadata_path)
 
         # image process, mask nodata region
         img_data, min, max, mean, median = image_read_pre_process(grd, src_nodata=src_nodata,b_normalized=True)
         print(datetime.now(),'read and preprocess, size:',img_data.shape,'min, max, mean, median',min, max, mean, median)
 
+        utility.write_metadata(['Image Height','Image Width','Pixel Min','Pixel max','Pixel mean','Pixel median'],
+                               [img_data.shape[0],img_data.shape[1],min,max,mean,median],filename=proc_metadata_path)
+
         if ptf:
             img_data = np.where(img_data > 0., img_data ** v, 0.)  # power transform
+            utility.write_metadata('does apply ptf?', 'Yes',filename=proc_metadata_path)
 
         p_water_loc, p_water_count, p_water_min, p_water_max, p_water_mean, p_water_median, p_water_std, grd_p_water_file = \
             permant_water_pixles(img_data, grd, water_mask_file, save_dir)
@@ -56,6 +69,7 @@ def flood_detection_from_SAR_amplitude(sar_image_list, save_dir,dst_nodata=128, 
         array_size = 182*3
         B_thresh = 0.65
         b_otsu = False
+        utility.write_metadata(['Final Block Size','Final S-array Size','BCV threshold'], [tile_size,array_size,B_thresh], filename=proc_metadata_path)
         bt = BimodalThreshold(grd,save_dir,tile_size,array_size,B_thresh,b_otsu=b_otsu)
 
         otsus, lms = bt.otsu_and_lm_for_an_image(img_data,verbose=verbose,process_num=process_num)
@@ -64,9 +78,9 @@ def flood_detection_from_SAR_amplitude(sar_image_list, save_dir,dst_nodata=128, 
         # ---------------------------------------------------------------------------
         ## Save Meta data file
         granule = os.path.basename(grd)
-        infile_path = os.path.dirname(grd)      # image directory
+        # infile_path = os.path.dirname(grd)      # image directory
         img_raster_obj = raster_tools.open_raster_read(grd)
-        save_metadata(granule, infile_path, img_raster_obj, tile_size, array_size, otsus, lms, 20, save_dir)
+        # save_metadata(granule, infile_path, img_raster_obj, tile_size, array_size, otsus, lms, 20, save_dir)
         print("OTSUS: ", otsus)  # this prints otsus results for each subtile - the lower threshold
         print("LMS: ", lms)  # This prints out the LM results for each subtile - the upper threshold
 
@@ -82,6 +96,11 @@ def flood_detection_from_SAR_amplitude(sar_image_list, save_dir,dst_nodata=128, 
                 print(datetime.now(), 'Choose %.4f as the threshold, LM mean is %.4f'%(tmp, lm))
                 lm = tmp
                 break
+        lm = np.min(lms)
+
+        utility.write_metadata(['Mean OTSU value', 'Mean LM value', 'OTSU Values','LM Values'],
+                               [str(np.mean(otsus)), str(np.mean(lms)), otsus, lms], filename=proc_metadata_path)
+        utility.write_metadata(['LM threshold'],[lm], filename=proc_metadata_path)
         if p_water_count > 5000 and lm > p_water_mean + 3*p_water_std:
             print(datetime.now(),'Warning, the mean of LM is too large')
             if g_water_thr is not None:
@@ -98,6 +117,10 @@ def flood_detection_from_SAR_amplitude(sar_image_list, save_dir,dst_nodata=128, 
         lm_map = lm_map.astype(np.uint8)
         map_type = 'LM'
         tiff_outname = write_geotiff(save_dir, img_raster_obj, granule, lm_map, map_type, nodata=dst_nodata, compress='lzw',b_colormap=True)  ## Write geotiff
+        utility.write_metadata(['Output Image', 'Output Path'],
+                               [os.path.basename(tiff_outname), os.path.dirname(tiff_outname)], filename=proc_metadata_path)
+        flood_pixel_count = (lm_map==1).sum()
+        utility.write_metadata('LM Flood Pixel Percentage', 100.0*flood_pixel_count/(lm_map.size - inan[0].size) , filename=proc_metadata_path)
 
         if len(otsus) > 0:
             # ---------------------------------------------------------------------------
@@ -109,6 +132,8 @@ def flood_detection_from_SAR_amplitude(sar_image_list, save_dir,dst_nodata=128, 
             otsu_map = otsu_map.astype(np.uint8)
             map_type = 'OTSU'
             tiff_outname = write_geotiff(save_dir, img_raster_obj, granule, otsu_map, map_type, nodata=dst_nodata, compress='lzw', b_colormap=True)
+            utility.write_metadata(['Output Image', 'Output Path'],[os.path.basename(tiff_outname),
+                                    os.path.dirname(tiff_outname)], filename=proc_metadata_path)
 
         utility.delete_file_or_dir(grd_p_water_file)
 
