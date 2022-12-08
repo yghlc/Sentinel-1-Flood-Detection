@@ -1,5 +1,4 @@
 FROM ubuntu:22.04
-MAINTAINER Lingcao Huang (lingcao.huang@colorado.edu)
 
 # Install base utilities
 RUN apt-get update && apt-get install -y  \
@@ -36,6 +35,11 @@ RUN pip install elevation
 RUN conda clean -tipy
 
 # clone github repo
-RUN git clone https://github.com/yghlc/Sentinel-1-Pre-Processing.git /opt/Sentinel-1-Pre-Processing  && \
-    git clone https://github.com/yghlc/Sentinel-1-Flood-Detection.git /opt/Sentinel-1-Flood-Detection
+RUN git clone https://github.com/yghlc/Sentinel-1-Flood-Detection.git /opt/Sentinel-1-Flood-Detection
 
+ENV PATH=/opt/Sentinel-1-Flood-Detection:$PATH
+
+COPY run.sh .
+# WORKDIR /data
+
+CMD ["conda", "run", "--no-capture-output", "-n", "base","/bin/bash","-c","./run.sh"]
