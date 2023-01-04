@@ -1053,6 +1053,8 @@ def line_segments_to_LineString(segment_list):
 
     return merged_line
 
+def polygon_to_outline(polygon):
+    return LineString(list(polygon.exterior.coords))
 
 
 def main(options, args):
