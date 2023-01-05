@@ -633,6 +633,13 @@ def set_water_color_map(raster_path):
 
     return True
 
+def set_ColorInterp_grey(raster_path):
+    with rasterio.open(raster_path,'r+') as dst:
+        # dst.write_colorinterp(1,ColorInterp.grey)
+        dst.colorinterp = [ColorInterp.grey]
+        # dst.colorinterp(1) = ColorInterp.grey
+
+
 def image_read_pre_process(image_path, src_nodata=None, b_normalized=False):
     '''
     return a max and min value for normalization (0-1)
