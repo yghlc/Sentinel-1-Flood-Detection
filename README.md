@@ -11,3 +11,4 @@
 - [x] For BCV: removing extreme values; require at least 10000 pixels
 - [x] local minimum: checking balance between two classes: one class presents at least 20% 
 - [ ] Use "a Hierarchical Split-Based Approach (Chini et al. 2017)" for tiling 
+- [x] estimate flood depth
