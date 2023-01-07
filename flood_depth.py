@@ -108,6 +108,11 @@ def cal_water_height(index, pixel_heights, height_diff_thr = 1):
         if (n-5-i)==50:
             print('Warning: the estimation of water height maybe not correct, idx: %d'%index)
 
+    if water_height is None:
+        print('Warning: using the median value as water height, idx: %d' % index)
+        water_height = np.median(height)
+
+
     return water_height
 
 def estimate_water_surface_height_one(index, line, line_width, water_height_diff_thr, dem_path):
