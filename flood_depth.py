@@ -21,6 +21,7 @@ import vector_gpd
 import math
 
 import rasterio
+from multiprocessing import Pool
 
 metadata_path = 'flood_depth_meta.json'
 
@@ -63,7 +64,6 @@ def floodmap_to_polygons(flood_map_tif,save_shp_path, min_area_thr, work_dir='./
 
     # fill holes
     vector_gpd.fill_holes_in_polygons_shp(out_area_shp,save_shp_path)
-
 
     # delete tmp.tif
     utility.delete_file_or_dir(tmp_tif)
@@ -110,16 +110,30 @@ def cal_water_height(index, pixel_heights, height_diff_thr = 1):
 
     return water_height
 
-def estimate_water_surface_height(water_polys_shp,line_width, dem_path):
+def estimate_water_surface_height_one(index, line, line_width, water_height_diff_thr, dem_path):
+    line_ele_data = read_pixels_along_a_line(line, line_width, dem_path)
+    water_height = cal_water_height(index, line_ele_data, water_height_diff_thr)
+    return water_height
+
+
+def estimate_water_surface_height(water_polys_shp,line_width, dem_path,process_num=1):
 
     polygons = vector_gpd.read_polygons_gpd(water_polys_shp,b_fix_invalid_polygon=True)
     polygon_outlines = [vector_gpd.polygon_to_outline(item) for item in polygons]
 
-    # out_image, out_transform, nodata = raster_tools.read_raster_in_polygons_mask(dem_path,polygons[0])
-    line_ele_data_list = [read_pixels_along_a_line(line, line_width, dem_path) for line in polygon_outlines]
-
-    # estimate water surface
-    water_height_list = [cal_water_height(idx, item,water_height_diff_thr) for idx,item in enumerate(line_ele_data_list)]
+    if process_num == 1:
+        # out_image, out_transform, nodata = raster_tools.read_raster_in_polygons_mask(dem_path,polygons[0])
+        line_ele_data_list = [read_pixels_along_a_line(line, line_width, dem_path) for line in polygon_outlines]
+        # estimate water surface
+        water_height_list = [cal_water_height(idx, item,water_height_diff_thr) for idx,item in enumerate(line_ele_data_list)]
+    elif process_num > 1:
+        theadPool = Pool(process_num)
+        parameters_list = [(idx, line, line_width, water_height_diff_thr, dem_path) for idx, line in enumerate(polygon_outlines)]
+        results = theadPool.starmap(estimate_water_surface_height_one, parameters_list)
+        water_height_list = [res for res in results]
+        theadPool.close()
+    else:
+        raise ValueError('input process_num is wrong: %s'%str(process_num))
 
     # save to the shp file
     attributes = {'water_h':water_height_list}
@@ -139,8 +153,46 @@ def test_estimate_water_surface_height():
 
     estimate_water_surface_height(flood_polys_shp, res/2,dem_tif)
 
+def cal_flood_depth_one(idx, w_poly,w_h,flood_map,flood_raster_transform,new_dem_tif,depth_np):
+    minx, miny, maxx, maxy = vector_gpd.get_polygon_bounding_box(w_poly)
 
-def cal_flood_depth(flood_map_tif,dem_tif,water_polygons,water_height_list,save_path):
+    xs = [minx, maxx]
+    ys = [maxy, miny]  # maxy (uppper left),  miny (lower right)
+    rows, cols = rasterio.transform.rowcol(flood_raster_transform, xs, ys)  # ,op=math.floor
+    # there is one pixel offset
+    rows = [item + 1 for item in rows]
+    cols = [item + 1 for item in cols]
+
+    sub_flood_np = flood_map[rows[0]:rows[1], cols[0]:cols[1]]  # +1?
+    # print('sub_flood_np shape:',sub_flood_np.shape)
+
+    # read dem within the polygon
+    dem_2d, dem_transform, dem_nodata = raster_tools.read_raster_in_polygons_mask(new_dem_tif, w_poly)
+    dem_2d = np.squeeze(dem_2d)
+
+    # # adjust the row, col a little bit
+    # if rows[1] - rows[0] < dem_2d.shape[0]:
+    #     rows[1] += 1
+    # if cols[1] - cols[0] < dem_2d.shape[1]:
+    #     cols[1] += 1
+
+    # adjust the dem a little bit, the dem array tend to a little bit large (1 pixel)
+    if rows[1] - rows[0] < dem_2d.shape[0] or cols[1] - cols[0] < dem_2d.shape[1]:
+        dem_2d = dem_2d[0:rows[1] - rows[0], 0:cols[1] - cols[0]]
+
+    # calculate the depth
+    depth = w_h - dem_2d
+    # print('depth shape:', depth.shape)
+    if sub_flood_np.shape != depth.shape:
+        raise ValueError('idx: %d,the size of sub_flood_np %s and depth is different %s' % (idx, str(sub_flood_np.shape), str(depth.shape)))
+
+    # save to the entire map
+    water_loc = np.where(np.logical_and(sub_flood_np == 1, dem_2d != dem_nodata))
+    water_loc_org = (water_loc[0] + rows[0], water_loc[1] + cols[0])
+    depth_np[water_loc_org] = depth[water_loc]
+
+
+def cal_flood_depth(flood_map_tif,dem_tif,water_polygons,water_height_list,save_path,process_num=1):
 
     flood_map, nodata = raster_tools.read_raster_one_band_np(flood_map_tif)
     flood_raster_transform = raster_tools.get_transform_from_file(flood_map_tif)
@@ -159,45 +211,22 @@ def cal_flood_depth(flood_map_tif,dem_tif,water_polygons,water_height_list,save_
     depth_np = np.zeros_like(flood_map).astype(np.float32)
     # depth_np[:] = depth_nodata
 
-    for idx, (w_poly, w_h) in enumerate(zip(water_polygons,water_height_list)):
+    # for process_num, because when run in parallel, data in depth_np is random.
+    # currently, no solution. modifying numpy array in parallel cause problems.
+    process_num = 1
 
-        minx, miny, maxx, maxy = vector_gpd.get_polygon_bounding_box(w_poly)
+    if process_num==1:
+        for idx, (w_poly, w_h) in enumerate(zip(water_polygons,water_height_list)):
+            cal_flood_depth_one(idx, w_poly, w_h, flood_map, flood_raster_transform, new_dem_tif, depth_np)
+    elif process_num > 1:
+        theadPool = Pool(process_num)
+        parameters_list = [(idx, w_poly, w_h, flood_map, flood_raster_transform, new_dem_tif, depth_np)
+                           for idx, (w_poly, w_h) in enumerate(zip(water_polygons,water_height_list))]
+        results = theadPool.starmap(cal_flood_depth_one, parameters_list)
+        theadPool.close()
+    else:
+        raise ValueError('input process_num is wrong: %s' % str(process_num))
 
-        xs = [minx, maxx]
-        ys = [maxy, miny]  # maxy (uppper left),  miny (lower right)
-        rows, cols = rasterio.transform.rowcol(flood_raster_transform, xs, ys) #,op=math.floor
-        # there is one pixel offset
-        rows = [item + 1 for item in rows]
-        cols = [item + 1 for item in cols]
-
-        sub_flood_np = flood_map[rows[0]:rows[1], cols[0]:cols[1]]  # +1?
-        # print('sub_flood_np shape:',sub_flood_np.shape)
-
-        # read dem within the polygon
-        dem_2d, dem_transform, dem_nodata = raster_tools.read_raster_in_polygons_mask(new_dem_tif,w_poly)
-        dem_2d = np.squeeze(dem_2d)
-
-        # # adjust the row, col a little bit
-        # if rows[1] - rows[0] < dem_2d.shape[0]:
-        #     rows[1] += 1
-        # if cols[1] - cols[0] < dem_2d.shape[1]:
-        #     cols[1] += 1
-
-        # adjust the dem a little bit, the dem array tend to a little bit large (1 pixel)
-        if rows[1] - rows[0] < dem_2d.shape[0] or cols[1] - cols[0] < dem_2d.shape[1]:
-            dem_2d = dem_2d[0:rows[1]-rows[0], 0:cols[1]-cols[0]]
-
-        # calculate the depth
-        depth = w_h - dem_2d
-        # print('depth shape:', depth.shape)
-        if sub_flood_np.shape != depth.shape:
-            raise ValueError('idx: %d,the size of sub_flood_np %s and depth is different %s'%(idx,str(sub_flood_np.shape), str(depth.shape)))
-
-
-        # save to the entire map
-        water_loc = np.where(np.logical_and(sub_flood_np == 1, dem_2d != dem_nodata))
-        water_loc_org = (water_loc[0] + rows[0], water_loc[1] + cols[0])
-        depth_np[water_loc_org] = depth[water_loc]
 
 
     depth_np[non_data_loc] = depth_nodata
@@ -253,15 +282,24 @@ def estimate_flood_depth(flood_map_tif, dem_tif, save_path,process_num=1,b_verbo
     # flood map to polygons
     save_dir = os.path.dirname(save_path)
     save_shp_path = os.path.join(save_dir,utility.get_name_no_ext(flood_map_tif) + '_polys.shp')
+    t1 = time.time()
     floodmap_to_polygons(flood_map_tif, save_shp_path,area_thr,work_dir=save_dir)
+    if b_verbose:
+        print(datetime.now(), 'flood map to polygons, took %f seconds'%(time.time() - t1) )
 
     # get water height for each flood regions
-    water_polys, water_height_list = estimate_water_surface_height(save_shp_path, xres/2.0, dem_tif)
+    t1 = time.time()
+    water_polys, water_height_list = estimate_water_surface_height(save_shp_path, xres/2.0, dem_tif, process_num=process_num)
+    if b_verbose:
+        print(datetime.now(), 'estimate the height of water surface, took %f seconds'%(time.time() - t1) )
 
     # calculate flood depth for each region
-    cal_flood_depth(flood_map_tif,dem_tif, water_polys, water_height_list,save_path)
+    t1 = time.time()
+    cal_flood_depth(flood_map_tif,dem_tif, water_polys, water_height_list,save_path,process_num=process_num)
+    if b_verbose:
+        print(datetime.now(), 'calculate flood depth, took %f seconds'%(time.time() - t1))
 
-    print(datetime.now(), 'Estimate depth for %s complete, took %s seconds' % (os.path.basename(flood_map_tif), time.time() - t0))
+    print(datetime.now(), 'Estimate depth for %s complete, took %f seconds' % (os.path.basename(flood_map_tif), time.time() - t0))
 
 
 def test_estimate_flood_depth():
