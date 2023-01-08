@@ -141,7 +141,8 @@ def estimate_water_surface_height(water_polys_shp,line_width, dem_path,process_n
         raise ValueError('input process_num is wrong: %s'%str(process_num))
 
     # save to the shp file
-    attributes = {'water_h':water_height_list}
+    idx_list = [item for item in range(len(water_height_list))]
+    attributes = {'idx': idx_list,'water_h':water_height_list}
     vector_gpd.add_attributes_to_shp(water_polys_shp,attributes)
 
 
