@@ -5,7 +5,7 @@ This repository contains the scripts to map flooded areas from Sentinel-1 images
 
 ### Install 
 ```
-   # pre-processing (GDAL will automatically be installed)
+   # Flood detection and depth estimation (GDAL will automatically be installed)
    conda create -n sar python=3.9
    conda activate sar
    conda install -c conda-forge geopandas   
