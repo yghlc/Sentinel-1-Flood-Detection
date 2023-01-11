@@ -1,5 +1,19 @@
 # Sentinel-1-Flood-Detection
 
+This repository contains the scripts to map flooded areas from Sentinel-1 images and estimate flood depth. 
+
+
+### Install 
+```
+   # pre-processing (GDAL will automatically be installed)
+   conda create -n sar python=3.9
+   conda activate sar
+   conda install -c conda-forge geopandas   
+   conda install -c conda-forge rasterio
+   conda install -c conda-forge scikit-image
+   conda install -c conda-forge simplekml   
+```
+
 
 ### TODO
 - [x] change the binary map from Float to Byte, add compression, reducing size of each Geotiff from ~3 GB to ~10 MB.
