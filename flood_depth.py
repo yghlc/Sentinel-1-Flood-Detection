@@ -289,6 +289,7 @@ def estimate_flood_depth(flood_map_tif, dem_tif, save_path,process_num=1,b_verbo
         raise ValueError('resolution in x (%f) and y (%f) direction is different' % (xres, yres))
 
     utility.write_metadata(['flood-map', 'DEM', 'resolution'], [flood_map_tif, dem_tif,xres], filename=metadata_path)
+    utility.write_metadata(['min-region-in-pixel', 'water-height-diff-thr'], [min_area, water_height_diff_thr], filename=metadata_path)
 
     area_thr = min_area*xres*yres
     # print(area_thr)
@@ -335,6 +336,13 @@ def main(options, args):
     process_num = options.process_num
     b_verbose = options.verbose
     save_dir = options.save_dir if options.save_dir is not None else './'
+    if options.min_pixel_count is not None:
+        global min_area
+        min_area = options.min_pixel_count
+    if options.water_height_diff_thr is not None:
+        global water_height_diff_thr
+        water_height_diff_thr = options.water_height_diff_thr
+
 
     utility.is_file_exist(flood_map)
     utility.is_file_exist(dem_tif)
@@ -362,6 +370,14 @@ if __name__ == "__main__":
     parser.add_option("-p", "--process_num",
                       action="store", dest="process_num", type=int, default=1,
                       help="the process to run the detection in parallel")
+
+    parser.add_option("-m", "--min_pixel_count",
+                      action="store", dest="min_pixel_count", type=int,
+                      help="ignore flood regions smaller than min_pixel_count")
+
+    parser.add_option("-w", "--water_height_diff_thr",
+                      action="store", dest="water_height_diff_thr", type=float,
+                      help="a threshold for estimating water height")
 
     parser.add_option("-v", "--verbose",
                       action="store_true", dest="verbose",default=False,
