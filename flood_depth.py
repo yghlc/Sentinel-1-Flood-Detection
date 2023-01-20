@@ -74,11 +74,15 @@ def floodmap_to_polygons(flood_map_tif,save_shp_path, min_area_thr, work_dir='./
 
 def read_pixels_along_a_line(line, line_width, raster_path):
     line_poly = line.buffer(line_width)
-    out_image, out_transform, nodata = raster_tools.read_raster_in_polygons_mask(raster_path,line_poly)
-    # print('out_image shape',out_image.shape)
-    data = out_image[out_image != nodata]
-    # print('out image exclude nodata', data, data.size, np.max(data), np.min(data))
-    return data
+    try:
+        out_image, out_transform, nodata = raster_tools.read_raster_in_polygons_mask(raster_path,line_poly)
+        # print('out_image shape',out_image.shape)
+        data = out_image[out_image != nodata]
+        # print('out image exclude nodata', data, data.size, np.max(data), np.min(data))
+        return data
+    except ValueError:
+        print(datetime.now(),"ValueError, the line does not overlap valid pixels")
+        return None
 
 def cal_water_height(index, pixel_heights, height_diff_thr = 1):
     # assume a flat water surface, ref:
@@ -91,6 +95,8 @@ def cal_water_height(index, pixel_heights, height_diff_thr = 1):
     # print('out image exclude nodata',pixel_heights.size, np.max(pixel_heights), np.min(pixel_heights),
     #       np.mean(pixel_heights),np.std(pixel_heights))
 
+    if pixel_heights is None:
+        return None
 
     height = np.sort(pixel_heights)     # sort, small to large
     # print(height)
@@ -160,6 +166,8 @@ def test_estimate_water_surface_height():
     estimate_water_surface_height(flood_polys_shp, res/2,dem_tif)
 
 def cal_flood_depth_one(idx, w_poly,w_h,flood_map,flood_raster_transform,new_dem_tif,depth_np):
+    if w_h is None:
+        return None
     minx, miny, maxx, maxy = vector_gpd.get_polygon_bounding_box(w_poly)
 
     xs = [minx, maxx]
