@@ -31,15 +31,15 @@ def test_get_flood_map_meta_path():
     print(meta_path)
 
 
-def save_flood_meta_to_table(flood_map_dir,flood_maps, save_table_path):
+def save_flood_meta_to_table(flood_map_dir,flood_maps_json, save_table_path):
     all_meta_dict = {}
 
     save_attributes = ["Input-Image","Image-Height","Image-Width","Pixel-mean","Pixel-median","Mean-LM-value",
                        "LM-threshold","LM-Flood-Pixel-Percentage"]
 
-    for idx, flood_tif in enumerate(flood_maps):
-        meta_path = get_flood_map_meta_path(flood_map_dir,flood_tif)
-        meta_dict = utility.read_dict_from_txt_json(meta_path)
+    for idx, flood_json in enumerate(flood_maps_json):
+        # meta_path = get_flood_map_meta_path(flood_map_dir,flood_tif)
+        meta_dict = utility.read_dict_from_txt_json(flood_json)
         for attr in save_attributes:
             all_meta_dict.setdefault(attr,[]).append(meta_dict[attr])
 
@@ -64,12 +64,12 @@ def main(options, args):
     if save_table_path is None:
         save_table_path = os.path.basename(flood_map_dir) + '.xlsx'
 
-    flood_map_tifs = utility.get_file_list_by_pattern(flood_map_dir,'*.tif')
-    flood_map_tifs = sorted(flood_map_tifs)
-    if len(flood_map_tifs) < 1:
+    flood_map_jsons = utility.get_file_list_by_pattern(flood_map_dir,'*.json')
+    flood_map_jsons = sorted(flood_map_jsons)
+    if len(flood_map_jsons) < 1:
         raise ValueError('No flood map in %s'%flood_map_dir)
 
-    save_flood_meta_to_table(flood_map_dir, flood_map_tifs,save_table_path)
+    save_flood_meta_to_table(flood_map_dir, flood_map_jsons,save_table_path)
 
 
 
