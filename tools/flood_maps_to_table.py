@@ -34,8 +34,8 @@ def test_get_flood_map_meta_path():
 def save_flood_meta_to_table(flood_map_dir,flood_maps, save_table_path):
     all_meta_dict = {}
 
-    save_attributes = ["Input Image","Image Height","Image Width","Pixel mean","Pixel median","Mean LM value",
-                       "LM threshold","LM Flood Pixel Percentage"]
+    save_attributes = ["Input-Image","Image-Height","Image-Width","Pixel-mean","Pixel-median","Mean-LM-value",
+                       "LM-threshold","LM-Flood-Pixel-Percentage"]
 
     for idx, flood_tif in enumerate(flood_maps):
         meta_path = get_flood_map_meta_path(flood_map_dir,flood_tif)
