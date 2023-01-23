@@ -66,6 +66,8 @@ def main(options, args):
 
     flood_map_tifs = utility.get_file_list_by_pattern(flood_map_dir,'*.tif')
     flood_map_tifs = sorted(flood_map_tifs)
+    if len(flood_map_tifs) < 1:
+        raise ValueError('No flood map in %s'%flood_map_dir)
 
     save_flood_meta_to_table(flood_map_dir, flood_map_tifs,save_table_path)
 
