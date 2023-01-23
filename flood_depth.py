@@ -220,6 +220,8 @@ def cal_flood_depth(flood_map_tif,dem_tif,water_polygons,water_height_list,save_
     out = raster_tools.resample_crop_raster(flood_map_tif, dem_tif, output_raster=new_dem_tif, resample_method='bilinear') #near
     if out is False:
         return False
+    dem_data_np, dem_nodata = raster_tools.read_raster_one_band_np(new_dem_tif)
+    dem_nodata_loc = np.where(dem_data_np == dem_nodata)
 
     depth_nodata = -9999.0
     depth_np = np.zeros_like(flood_map).astype(np.float32)
@@ -244,6 +246,7 @@ def cal_flood_depth(flood_map_tif,dem_tif,water_polygons,water_height_list,save_
 
 
     depth_np[non_data_loc] = depth_nodata
+    depth_np[dem_nodata_loc] = depth_nodata # mask dem nodata regions
     raster_tools.save_numpy_array_to_rasterfile(depth_np,save_path,flood_map_tif,nodata=depth_nodata,
                                                 compress='lzw', tiled='yes', bigtiff='if_safer')
     raster_tools.set_ColorInterp_grey(save_path)
