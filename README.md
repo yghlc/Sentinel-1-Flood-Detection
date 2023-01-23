@@ -12,6 +12,7 @@ This repository contains the scripts to map flooded areas from Sentinel-1 images
    conda install -c conda-forge rasterio
    conda install -c conda-forge scikit-image
    conda install -c conda-forge simplekml   
+   conda install -c conda-forge openpyxl       # for exporting excel table
 ```
 
 
