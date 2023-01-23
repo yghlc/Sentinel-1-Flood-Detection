@@ -115,13 +115,13 @@ def flood_detection_from_SAR_amplitude(sar_image_list, save_dir,dst_nodata=128, 
         else:
             lm_map = np.where(img_data < lm, 1, 0)  # lm_map is a binary image of pixels above the threshold; Converts values greater than the mean (i.e. industrial(?)) to 1, all else to 0; a binary image of water(1) and non-water(0)
         inan = np.where(np.isnan(img_data))
+        lm_map = lm_map.astype(np.uint8)
         lm_map[inan] = dst_nodata  ## set nodata regions
         tiff_outname = write_geotiff(save_dir, img_raster_obj, granule, lm_map, 'LM_allWater', nodata=dst_nodata,
                                      compress='lzw', b_colormap=True)  ## Write geotiff
         utility.write_metadata(['LM-Water-Map'],[os.path.basename(tiff_outname)],filename=proc_metadata_path)
         lm_map[p_water_loc] = 0  ## apply permanent water mask
         lm_map[inan] = dst_nodata  ## convert no data values, again, because permafrost water could be in nodata regions of images
-        lm_map = lm_map.astype(np.uint8)
         map_type = 'LM'
         tiff_outname = write_geotiff(save_dir, img_raster_obj, granule, lm_map, map_type, nodata=dst_nodata, compress='lzw',b_colormap=True)  ## Write geotiff
         utility.write_metadata(['LM-Output-Image', 'LM-Output-Path'],
