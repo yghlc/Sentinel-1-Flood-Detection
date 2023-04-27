@@ -8,4 +8,4 @@ water_mask=/data/global_surface_water/extent_epsg4326_theUS/surface_water_theUS_
 sar_img_dir=${save_dir}/pre-processed/final
 fd_dir=${save_dir}/FD_results_thresholding
 
-sar_flood_det.py ${sar_img_dir} --src_nodata=0.0 -w ${water_mask}  -d ${fd_dir}  --process_num=4
+sar_flood_det.py ${sar_img_dir} --src_nodata=0.0 -w ${water_mask}  -d ${fd_dir}  --process_num=1

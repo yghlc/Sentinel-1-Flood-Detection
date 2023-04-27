@@ -17,9 +17,14 @@ docker rmi  -f sentinel-1-pre-processing
 docker run --rm -it sentinel-1-flood-detection
 
 
-# run, mount /data (-v PATH-on-host-machine:PATH-inside-container)
-docker run --rm -v /home/lihu9680/Bhaltos2/lingcaoHuang:/data  -it sentinel-1-flood-detection
+# noted: need large CPU memory (>16 GB) to run,
+# "docker info | grep Memory" shows the total memory, adjust this if necessary.
 
+# run, mount /data (-v PATH-on-host-machine:PATH-inside-container)
+# TESIA
+docker run --rm -v /home/lihu9680/Bhaltos2/lingcaoHuang:/data  -it sentinel-1-flood-detection
+# my Laptop:
+docker run --rm -v ${HOME}/Data:/data -v ${HOME}:/home/user  -it sentinel-1-flood-detection
 
 
 # tag and push to docker hub
