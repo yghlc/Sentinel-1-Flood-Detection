@@ -39,6 +39,7 @@ RUN git clone https://github.com/yghlc/Sentinel-1-Flood-Detection.git /opt/Senti
 
 ENV PATH=/opt/Sentinel-1-Flood-Detection:$PATH
 
+RUN cd /opt/Sentinel-1-Flood-Detection && git pull
 COPY run.sh .
 # WORKDIR /data
 
