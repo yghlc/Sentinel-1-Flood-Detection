@@ -23,6 +23,7 @@ from raster_tools import image_read_pre_process,permant_water_pixles
 from BimodalThreshold_module_v02 import BimodalThreshold
 
 from utility import get_sar_file_list
+from utility import read_dict_from_txt_json
 import utility
 
 proc_metadata_path = 'FD_Results_meta.json'
@@ -157,16 +158,33 @@ def flood_detection_from_SAR_amplitude(sar_image_list, save_dir,dst_nodata=128, 
 
 def main(options, args):
 
-    sar_image_list = get_sar_file_list(args[0])
-    sar_image_list = [os.path.abspath(item) for item in sar_image_list]
-    save_dir = os.path.abspath(options.save_dir)
-    water_mask = options.water_mask
-    verbose = options.verbose
+    if args[0].endswith('.json'):
+        input_dict = read_dict_from_txt_json(args[0])
+        file_list_or_dir = input_dict['sar_image_file_list_or_dir']
 
-    src_nodata = options.src_nodata
-    dst_nodata = options.out_nodata
-    process_num = options.process_num
-    global_water_threshold = options.global_water_threshold
+        save_dir = os.path.abspath(input_dict['flood_map_save_dir'])
+        water_mask = input_dict['permanent_water_mask']
+        verbose = input_dict['b_verbose'] if 'b_verbose' in input_dict.keys() else False
+
+        src_nodata = input_dict['sar_image_nodata']
+        dst_nodata = input_dict['flood_map_nodata'] if 'flood_map_nodata' in  input_dict.keys() else 128
+
+        process_num = input_dict['FD_process_num']  if 'FD_process_num' in input_dict.keys() else 1
+        global_water_threshold = input_dict['global_water_threshold'] if 'global_water_threshold' in input_dict.keys() else None
+
+    else:
+        file_list_or_dir = args[0]
+        save_dir = os.path.abspath(options.save_dir)
+        water_mask = options.water_mask
+        verbose = options.verbose
+
+        src_nodata = options.src_nodata
+        dst_nodata = options.out_nodata
+        process_num = options.process_num
+        global_water_threshold = options.global_water_threshold
+
+    sar_image_list = get_sar_file_list(file_list_or_dir)
+    sar_image_list = [os.path.abspath(item) for item in sar_image_list]
 
     print(datetime.now(), 'Found %d SAR Sigma0 images from %s:'%(len(sar_image_list),args[0]))
     print(datetime.now(), 'Will save flood detection results to %s'%save_dir)
