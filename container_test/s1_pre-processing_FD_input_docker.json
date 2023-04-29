@@ -1,0 +1,21 @@
+{
+  "extent_shp": "/data/flooding_area/Houston/extent_image_valid/houston_valid_image_extent.shp",
+  "s1_zip_save_dir": "/data/flooding_area/test_docker_containers/Houston/sentinel-1",
+  "start_date": "2017-08-29",
+  "end_date": "2017-08-30",
+  "username": null,
+  "password": null,
+  "s1_zip_file_list_or_dir": "/data/flooding_area/test_docker_containers/Houston/sentinel-1",
+  "sar_images_save_dir": "/data/flooding_area/test_docker_containers/Houston/pre-processed",
+  "temp_dir": "/tmp",
+  "save_pixel_size": 10,
+  "elevation_file": null,
+  "env_setting": "env_setting.json",
+  "sar_image_file_list_or_dir": "/data/flooding_area/test_docker_containers/Houston/pre-processed/final",
+  "flood_map_save_dir": "/data/flooding_area/test_docker_containers/Houston/FD_results_thresholding",
+  "permanent_water_mask": "/data/global_surface_water/extent_epsg4326_theUS/surface_water_theUS_3_2020.tif",
+  "b_verbose": false,
+  "sar_image_nodata": 0.0,
+  "flood_map_nodata": 128,
+  "FD_process_num": 1
+}
