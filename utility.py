@@ -88,6 +88,8 @@ def save_dict_to_txt_json(file_name, save_dict):
         f_obj.write(json_data)
 
 def read_dict_from_txt_json(file_path):
+    if os.path.isfile(file_path) is False:
+        raise IOError('%s does not exist'%os.path.abspath(file_path))
     if os.path.getsize(file_path) == 0:
         return None
     with open(file_path) as f_obj:
