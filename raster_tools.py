@@ -655,6 +655,9 @@ def image_read_pre_process(image_path, src_nodata=None, b_normalized=False):
         nodata = src_nodata
 
     if nodata is not None:
+        # Convert the array to a float type if it's not already
+        if not np.issubdtype(data.dtype, np.floating):
+            data = data.astype(float)
         data[data==nodata] = np.nan   # set nodata as nan
     else:
         print('Warning, nodata value is not set')
